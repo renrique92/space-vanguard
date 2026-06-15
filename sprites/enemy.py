@@ -2,9 +2,8 @@ import pygame
 import random
 from settings import (
     ENEMY_W, ENEMY_H, ENEMY_H_GAP, ENEMY_V_GAP,
-    ENEMY_TOP, ENEMY_COLS, ENEMY_ROWS,
-    ENEMY_BASE_SPEED, ENEMY_STEP_DOWN, ENEMY_AUTO_STEP,
-    ENEMY_BOUNDARY, ROW_COLORS, ROW_POINTS, GAME_WIDTH,
+    ENEMY_TOP, ENEMY_BASE_SPEED, ENEMY_STEP_DOWN,
+    ENEMY_AUTO_STEP, ENEMY_BOUNDARY, GAME_WIDTH,
     BULLET_W, WHITE, ENEMY_SHOOT_RATE_BASE,
     ENEMY_SHOOT_RATE_PER_ENEMY, GAME_OVER_LINE
 )
@@ -25,21 +24,26 @@ class Enemy(pygame.sprite.Sprite):
 
 
 class EnemyFormation:
-    def __init__(self):
+    def __init__(self, config):
         self.direction = 1
         self.speed = ENEMY_BASE_SPEED
-        self.initial_count = ENEMY_ROWS * ENEMY_COLS
+        self.config = config
         self.enemies = pygame.sprite.Group()
+        self.initial_count = sum(sum(row) for row in config["pattern"])
         self._create()
 
     def _create(self):
-        for row in range(ENEMY_ROWS):
-            for col in range(ENEMY_COLS):
-                x = ENEMY_BOUNDARY + col * (ENEMY_W + ENEMY_H_GAP)
-                y = ENEMY_TOP + row * (ENEMY_H + ENEMY_V_GAP)
-                self.enemies.add(
-                    Enemy(x, y, ROW_COLORS[row], ROW_POINTS[row])
-                )
+        pattern = self.config["pattern"]
+        colors = self.config["colors"]
+        points = self.config["points"]
+        for row_idx, row_data in enumerate(pattern):
+            for col_idx, cell in enumerate(row_data):
+                if cell:
+                    x = ENEMY_BOUNDARY + col_idx * (ENEMY_W + ENEMY_H_GAP)
+                    y = ENEMY_TOP + row_idx * (ENEMY_H + ENEMY_V_GAP)
+                    self.enemies.add(
+                        Enemy(x, y, colors[row_idx], points[row_idx])
+                    )
 
     def update(self, *args):
         if not self.enemies:
@@ -54,7 +58,7 @@ class EnemyFormation:
                 break
 
         remaining = len(self.enemies)
-        mult = 1 + 2 * (1 - remaining / self.initial_count) if remaining > 0 else 1
+        mult = 1 + 0.7 * (1 - remaining / self.initial_count) if remaining > 0 else 1
         self.speed = ENEMY_BASE_SPEED * mult
 
         for enemy in self.enemies:
@@ -84,8 +88,11 @@ class EnemyFormation:
                 return True
         return False
 
-    def reset(self):
+    def reset(self, config=None):
         self.enemies.empty()
         self.direction = 1
         self.speed = ENEMY_BASE_SPEED
+        if config is not None:
+            self.config = config
+            self.initial_count = sum(sum(row) for row in config["pattern"])
         self._create()

@@ -16,7 +16,6 @@ class InfoPanel:
         self.font_control = pygame.font.Font(None, 20)
 
         cx = GAME_WIDTH + PANEL_WIDTH // 2
-        left_margin = GAME_WIDTH + 30
 
         self.title_y = 45
         self.score_label_y = 120
@@ -29,7 +28,6 @@ class InfoPanel:
 
         self.lives_label_y = 330
         self.lives_y = 370
-        self.lives_start_x = left_margin
         self.div3_y = 410
 
         self.mult_label_y = 440
@@ -71,8 +69,11 @@ class InfoPanel:
         screen.blit(hv, hr)
 
         self._label(screen, "LIVES", self.font_score, self.cx, self.lives_label_y)
-        for i in range(min(lives, 5)):
-            self._life_icon(screen, self.lives_start_x + i * 30, self.lives_y)
+        n = min(lives, 5)
+        total_w = n * 30 - 10
+        start_x = self.cx - total_w // 2
+        for i in range(n):
+            self._life_icon(screen, start_x + i * 30, self.lives_y)
 
         self._label(screen, "MULTIPLIER", self.font_score, self.cx, self.mult_label_y)
         mult_color = TEXT_ACCENT if multiplier >= 1.0 else RED
@@ -90,7 +91,6 @@ class InfoPanel:
             ("LEFT RIGHT", "MOVE"),
             ("SPACE", "SHOOT"),
             ("P", "PAUSE"),
-            ("R", "RESTART"),
         ]
         y = self.controls_y
         for key, action in controls:

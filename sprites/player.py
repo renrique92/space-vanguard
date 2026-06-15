@@ -20,12 +20,13 @@ class Player(pygame.sprite.Sprite):
         pygame.draw.polygon(self.image, GREEN, points)
         pygame.draw.rect(self.image, CYAN, (cx - 4, by // 2 - 2, 8, by // 2))
 
-    def reset(self):
+    def reset(self, reset_lives=True):
         self.rect.midbottom = (GAME_WIDTH // 2, WINDOW_HEIGHT - PLAYER_BOTTOM_MARGIN)
-        self.lives = PLAYER_LIVES
+        if reset_lives:
+            self.lives = PLAYER_LIVES
         self.speed = PLAYER_SPEED
         self.invulnerable = False
-        self.invuln_start = 0
+        self.invuln_start = pygame.time.get_ticks()
         self.image.set_alpha(255)
 
     def update(self, *args):

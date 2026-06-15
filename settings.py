@@ -35,8 +35,6 @@ INVULNERABLE_MS = 1500
 MAX_PLAYER_BULLETS = 3
 SHOT_DELAY = 250
 
-ENEMY_COLS = 8
-ENEMY_ROWS = 5
 ENEMY_W = 36
 ENEMY_H = 22
 ENEMY_H_GAP = 10
@@ -44,12 +42,69 @@ ENEMY_V_GAP = 10
 ENEMY_TOP = 60
 ENEMY_BASE_SPEED = 1.5
 ENEMY_STEP_DOWN = 20
-ENEMY_AUTO_STEP_INTERVAL = 3000
+ENEMY_AUTO_STEP_INTERVAL = 4000
 ENEMY_AUTO_STEP = 3
 ENEMY_BOUNDARY = 10
 
 ROW_COLORS = [RED, ORANGE, YELLOW, LIME, CYAN]
 ROW_POINTS = [30, 25, 20, 15, 10]
+
+TOTAL_LEVELS = 5
+MAX_LIVES = 5
+
+LEVELS = [
+    {
+        "pattern": [
+            [1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1],
+        ],
+        "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
+        "points": [30, 25, 20, 15, 10],
+    },
+    {
+        "pattern": [
+            [0,0,0,1,1,0,0,0],
+            [0,0,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,0],
+            [0,0,1,1,1,1,0,0],
+            [0,0,0,1,1,0,0,0],
+        ],
+        "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
+        "points": [30, 25, 20, 15, 10],
+    },
+    {
+        "pattern": [
+            [0,0,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1],
+            [0,1,1,0,0,1,1,0],
+            [0,0,1,0,0,1,0,0],
+        ],
+        "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
+        "points": [30, 25, 20, 15, 10],
+    },
+    {
+        "pattern": [
+            [1,0,1,0,1,0,1,0,1,0],
+            [1,0,1,0,1,0,1,0,1,0],
+            [1,0,1,0,1,0,1,0,1,0],
+            [1,0,1,0,1,0,1,0,1,0],
+        ],
+        "colors": [RED, ORANGE, YELLOW, LIME],
+        "points": [30, 25, 20, 15],
+    },
+    {
+        "pattern": [
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+        ],
+        "colors": [RED, ORANGE],
+        "points": [35, 30],
+    },
+]
 
 BULLET_W = 4
 PLAYER_BULLET_H = 14
@@ -58,7 +113,7 @@ PLAYER_BULLET_SPEED = 9
 ENEMY_BULLET_SPEED = 5
 
 ENEMY_SHOOT_RATE_BASE = 0.015
-ENEMY_SHOOT_RATE_PER_ENEMY = 0.0005
+ENEMY_SHOOT_RATE_PER_ENEMY = 0.00025
 
 GAME_OVER_LINE = WINDOW_HEIGHT - 80
 

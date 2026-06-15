@@ -6,10 +6,11 @@ import pygame
 
 from settings import (
     BLACK, BULLET_W, DIVIDER, ENEMY_AUTO_STEP_INTERVAL,
-    ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, MAX_PLAYER_BULLETS,
-    PLAYER_BULLET_H, PLAYER_BULLET_SPEED, SCORE_MULT_START,
-    SCORE_MULT_DECAY, SCORE_MULT_MIN, SHOT_DELAY, TEXT_ACCENT,
-    TEXT_MAIN, WINDOW_HEIGHT, WINDOW_WIDTH,
+    ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, LEVELS,
+    MAX_LIVES, MAX_PLAYER_BULLETS, PLAYER_BULLET_H,
+    PLAYER_BULLET_SPEED, SCORE_MULT_START, SCORE_MULT_DECAY,
+    SCORE_MULT_MIN, SHOT_DELAY, TEXT_ACCENT, TEXT_MAIN,
+    TOTAL_LEVELS, WINDOW_HEIGHT, WINDOW_WIDTH,
 )
 from sounds import SoundManager
 from effects import ScreenShake, MuzzleFlash, spawn_explosion
@@ -45,8 +46,13 @@ class Game:
         self.sound = SoundManager()
         self.screen_shake = ScreenShake()
 
+        self.level = 1
+        self._game_started = False
+        self.transitioning = True
+        self.transition_timer = 2000
+
         self.player = Player()
-        self.formation = EnemyFormation()
+        self.formation = EnemyFormation(LEVELS[0])
         self.player_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
         self.particles = pygame.sprite.Group()
@@ -60,13 +66,14 @@ class Game:
         self._pending_shots = set()
 
         self.game_surf = pygame.Surface((GAME_WIDTH, WINDOW_HEIGHT))
+        self.font_level = pygame.font.Font(None, 28)
 
     def run(self):
         while self.running:
             dt = self.clock.tick(FPS)
             self._handle_events()
 
-            if not self.paused and self.state == "PLAYING":
+            if not self.paused and (self.state == "PLAYING" or self.transitioning):
                 self._update(dt)
 
             self._draw()
@@ -117,6 +124,19 @@ class Game:
 
     def _update(self, dt):
         self.elapsed_time += dt
+
+        if self.transitioning:
+            self.transition_timer -= dt
+            self.particles.update(dt)
+            self.flash_fx.update(dt)
+            if self.transition_timer <= 0:
+                if not self._game_started:
+                    self.transitioning = False
+                    self._game_started = True
+                else:
+                    self._advance_level()
+            return
+
         self.screen_shake.update(dt)
         self.player.update()
         self.formation.update()
@@ -177,9 +197,18 @@ class Game:
             self.sound.play("game_over")
 
         if len(self.formation.enemies) == 0:
-            self.state = "WIN"
-            self._save_high_score()
-            self.sound.play("win")
+            if self.level < TOTAL_LEVELS:
+                self.transitioning = True
+                self.transition_timer = 2000
+                if self.player.lives < MAX_LIVES:
+                    self.player.lives += 1
+                self.sound.play("level_up")
+                self.player_bullets.empty()
+                self.enemy_bullets.empty()
+            else:
+                self.state = "WIN"
+                self._save_high_score()
+                self.sound.play("win")
 
     def _draw(self):
         self.game_surf.fill(BLACK)
@@ -189,10 +218,16 @@ class Game:
 
         self.enemy_bullets.draw(self.game_surf)
         self.player_bullets.draw(self.game_surf)
-        self.formation.enemies.draw(self.game_surf)
+        if self._game_started:
+            self.formation.enemies.draw(self.game_surf)
         self.particles.draw(self.game_surf)
         self.flash_fx.draw(self.game_surf)
         self.game_surf.blit(self.player.image, self.player.rect)
+
+        self._draw_level_indicator()
+
+        if self.transitioning:
+            self._draw_level_transition()
 
         sx, sy = self.screen_shake.get_offset()
         self.screen.fill(BLACK)
@@ -251,8 +286,12 @@ class Game:
 
     def _reset(self):
         self.score = 0
+        self.level = 1
         self.state = "PLAYING"
         self.paused = False
+        self._game_started = False
+        self.transitioning = True
+        self.transition_timer = 2000
         self.auto_step_timer = 0
         self.last_shot_time = 0
         self.elapsed_time = 0
@@ -264,10 +303,39 @@ class Game:
         self.particles.empty()
         self.flash_fx.empty()
         self.player.reset()
-        self.formation.reset()
+        self.formation = EnemyFormation(LEVELS[0])
 
     def _resolve_shots(self):
         dead = [s for s in self._pending_shots if not s.alive()]
         for s in dead:
             self.shots_fired += 1
             self._pending_shots.remove(s)
+
+    def _advance_level(self):
+        self.level += 1
+        self.transitioning = False
+        self.elapsed_time = 0
+        self.formation = EnemyFormation(LEVELS[self.level - 1])
+        self.player.reset(reset_lives=False)
+        self.auto_step_timer = 0
+
+    def _draw_level_indicator(self):
+        text = self.font_level.render(f"Level {self.level}", True, TEXT_ACCENT)
+        bg = pygame.Surface((text.get_width() + 12, text.get_height() + 6))
+        bg.set_alpha(100)
+        bg.fill((0, 0, 0))
+        self.game_surf.blit(bg, (8, 8))
+        self.game_surf.blit(text, (14, 11))
+
+    def _draw_level_transition(self):
+        ft = pygame.font.Font(None, 56)
+        fs = pygame.font.Font(None, 28)
+        if not self._game_started:
+            t1 = ft.render(f"LEVEL {self.level}", True, TEXT_ACCENT)
+        else:
+            t1 = ft.render(f"LEVEL {self.level} CLEAR", True, TEXT_ACCENT)
+        t2 = fs.render("Get ready...", True, TEXT_MAIN)
+        r1 = t1.get_rect(center=(GAME_WIDTH // 2, WINDOW_HEIGHT // 2 - 20))
+        r2 = t2.get_rect(center=(GAME_WIDTH // 2, WINDOW_HEIGHT // 2 + 30))
+        self.game_surf.blit(t1, r1)
+        self.game_surf.blit(t2, r2)

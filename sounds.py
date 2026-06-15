@@ -26,6 +26,7 @@ class SoundManager:
         self.sounds["player_hit"] = self._tone(150, 0.30, 0.20, "sine")
         self.sounds["game_over"] = self._sweep(440, 110, 0.60, 0.15, "sine")
         self.sounds["win"] = self._sweep(330, 880, 0.60, 0.15, "sine")
+        self.sounds["level_up"] = self._sweep(660, 1320, 0.30, 0.12, "square")
 
     def play(self, name):
         if self.available and name in self.sounds:

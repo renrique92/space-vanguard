@@ -1,6 +1,3 @@
-import pygame
-
-
 def draw_text(surface, text, font, color, x, y, center=False):
     img = font.render(text, True, color)
     rect = img.get_rect()
