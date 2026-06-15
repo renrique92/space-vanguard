@@ -1,9 +1,8 @@
 import pygame
 from settings import (
-    GAME_WIDTH, PANEL_WIDTH, WINDOW_HEIGHT,
-    DARK_BG, DIVIDER, TEXT_MAIN, TEXT_ACCENT,
-    TITLE_COLOR, WHITE, GREEN, PANEL_AREA,
-    PLAYER_W, PLAYER_H, SCORE_MULT_MIN, RED
+    GAME_WIDTH, PANEL_WIDTH, DARK_BG, DIVIDER,
+    TEXT_MAIN, TEXT_ACCENT, TITLE_COLOR, WHITE,
+    GREEN, PANEL_AREA, RED,
 )
 
 
@@ -37,10 +36,14 @@ class InfoPanel:
         self.mult_value_y = 470
         self.div4_y = 510
 
-        self.controls_y = 520
+        self.acc_label_y = 535
+        self.acc_value_y = 565
+        self.div5_y = 595
+
+        self.controls_y = 610
         self.cx = cx
 
-    def draw(self, screen, score, high_score, lives, state, multiplier):
+    def draw(self, screen, score, high_score, lives, state, multiplier, accuracy):
         screen.fill(DARK_BG, PANEL_AREA)
 
         t1 = self.font_title.render("SPACE", True, TITLE_COLOR)
@@ -55,6 +58,7 @@ class InfoPanel:
         self._divider(screen, self.div2_y)
         self._divider(screen, self.div3_y)
         self._divider(screen, self.div4_y)
+        self._divider(screen, self.div5_y)
 
         self._label(screen, "SCORE", self.font_score, self.cx, self.score_label_y)
         sv = self.font_value.render(f"{score:07d}", True, TEXT_ACCENT)
@@ -75,6 +79,12 @@ class InfoPanel:
         mult_text = self.font_value.render(f"× {multiplier:.1f}", True, mult_color)
         mult_rect = mult_text.get_rect(center=(self.cx, self.mult_value_y))
         screen.blit(mult_text, mult_rect)
+
+        self._label(screen, "ACCURACY", self.font_score, self.cx, self.acc_label_y)
+        acc_color = TEXT_ACCENT if accuracy >= 50.0 else RED
+        acc_text = self.font_value.render(f"{accuracy:.0f}%", True, acc_color)
+        acc_rect = acc_text.get_rect(center=(self.cx, self.acc_value_y))
+        screen.blit(acc_text, acc_rect)
 
         controls = [
             ("LEFT RIGHT", "MOVE"),

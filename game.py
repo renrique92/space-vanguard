@@ -6,12 +6,10 @@ import pygame
 
 from settings import (
     BLACK, BULLET_W, DIVIDER, ENEMY_AUTO_STEP_INTERVAL,
-    ENEMY_BULLET_H, ENEMY_BULLET_SPEED, ENEMY_BOUNDARY,
-    FPS, GAME_AREA, GAME_WIDTH, MAX_PLAYER_BULLETS,
-    PANEL_WIDTH, PLAYER_BULLET_H, PLAYER_BULLET_SPEED,
-    SCORE_MULT_START, SCORE_MULT_DECAY, SCORE_MULT_MIN,
-    SHOT_DELAY, TEXT_ACCENT, TEXT_MAIN, WINDOW_HEIGHT,
-    WINDOW_WIDTH,
+    ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, MAX_PLAYER_BULLETS,
+    PLAYER_BULLET_H, PLAYER_BULLET_SPEED, SCORE_MULT_START,
+    SCORE_MULT_DECAY, SCORE_MULT_MIN, SHOT_DELAY, TEXT_ACCENT,
+    TEXT_MAIN, WINDOW_HEIGHT, WINDOW_WIDTH,
 )
 from sounds import SoundManager
 from effects import ScreenShake, MuzzleFlash, spawn_explosion
@@ -57,6 +55,9 @@ class Game:
         self.auto_step_timer = 0
         self.last_shot_time = 0
         self.elapsed_time = 0
+        self.shots_fired = 0
+        self.shots_hit = 0
+        self._pending_shots = set()
 
         self.game_surf = pygame.Surface((GAME_WIDTH, WINDOW_HEIGHT))
 
@@ -95,9 +96,9 @@ class Game:
                 self.last_shot_time = now
                 x = self.player.rect.centerx - BULLET_W // 2
                 y = self.player.rect.top - PLAYER_BULLET_H
-                self.player_bullets.add(
-                    Bullet(x, y, -PLAYER_BULLET_SPEED, is_player=True)
-                )
+                bullet = Bullet(x, y, -PLAYER_BULLET_SPEED, is_player=True)
+                self.player_bullets.add(bullet)
+                self._pending_shots.add(bullet)
                 self.sound.play("shoot")
                 self.flash_fx.add(
                     MuzzleFlash(self.player.rect.centerx, self.player.rect.top)
@@ -107,6 +108,12 @@ class Game:
     def score_multiplier(self):
         sec = self.elapsed_time / 1000
         return max(SCORE_MULT_MIN, SCORE_MULT_START - sec / SCORE_MULT_DECAY)
+
+    @property
+    def accuracy(self):
+        if self.shots_fired == 0:
+            return 100.0
+        return self.shots_hit / self.shots_fired * 100
 
     def _update(self, dt):
         self.elapsed_time += dt
@@ -137,7 +144,9 @@ class Game:
         )
         mult = self.score_multiplier
         for bullet, enemies in hits.items():
+            bullet.has_hit = True
             for enemy in enemies:
+                self.shots_hit += 1
                 self.score += int(enemy.points * mult)
                 color = enemy.image.get_at((0, 0))[:3]
                 self.particles.add(
@@ -146,6 +155,8 @@ class Game:
                     )
                 )
                 self.sound.play("explosion")
+
+        self._resolve_shots()
 
         if not self.player.invulnerable:
             hit = pygame.sprite.spritecollide(
@@ -193,7 +204,8 @@ class Game:
 
         self.info_panel.draw(
             self.screen, self.score, self.high_score,
-            self.player.lives, self.state, self.score_multiplier
+            self.player.lives, self.state, self.score_multiplier,
+            self.accuracy,
         )
 
         if self.paused:
@@ -244,9 +256,18 @@ class Game:
         self.auto_step_timer = 0
         self.last_shot_time = 0
         self.elapsed_time = 0
+        self.shots_fired = 0
+        self.shots_hit = 0
+        self._pending_shots.clear()
         self.player_bullets.empty()
         self.enemy_bullets.empty()
         self.particles.empty()
         self.flash_fx.empty()
         self.player.reset()
         self.formation.reset()
+
+    def _resolve_shots(self):
+        dead = [s for s in self._pending_shots if not s.alive()]
+        for s in dead:
+            self.shots_fired += 1
+            self._pending_shots.remove(s)

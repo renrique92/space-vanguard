@@ -16,6 +16,7 @@ class Bullet(pygame.sprite.Sprite):
         self.image.fill(color)
         self.rect = self.image.get_rect(topleft=(x, y))
         self.speed = speed
+        self.has_hit = False
 
     def update(self, *args):
         self.rect.y += self.speed
