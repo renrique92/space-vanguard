@@ -77,7 +77,7 @@ class InfoPanel:
         screen.blit(mult_text, mult_rect)
 
         controls = [
-            ("← →", "MOVE"),
+            ("LEFT RIGHT", "MOVE"),
             ("SPACE", "SHOOT"),
             ("P", "PAUSE"),
             ("R", "RESTART"),
