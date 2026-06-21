@@ -288,7 +288,15 @@ pygame.display.set_mode((1000, 700))
 "
 ```
 
-Required before any Pygame display call in headless environments. No test framework — all tests are ad-hoc.
+Required before any Pygame display call in headless environments. Autoconfigured in `tests/conftest.py` for pytest.
+
+### Running Tests
+
+```bash
+python3 -m pytest tests/ -v
+```
+
+52 smoke tests covering init, game loop, collisions, level transitions, scoring, persistence, particles, and edge cases. All headless (no display needed).
 
 ---
 
@@ -296,7 +304,7 @@ Required before any Pygame display call in headless environments. No test framew
 
 ### `dt`-Based Timers (not `pygame.time.get_ticks()`)
 
-All particle/flash/shake timing uses `dt` (delta time from `clock.tick()`) passed to `update(dt)`. This is critical for headless operation — `pygame.time.get_ticks()` returns 0 in a dummy video driver environment, which would break timers. The exception is player invulnerability (`INVULNERABLE_MS`), which still uses `pygame.time.get_ticks()` — this could be a bug in headless mode.
+All particle/flash/shake timing uses `dt` (delta time from `clock.tick()`) passed to `update(dt)`. This is critical for headless operation — `pygame.time.get_ticks()` returns 0 in a dummy video driver environment, which would break timers. Player invulnerability also uses `dt`-based timing (see `sprites/player.py`).
 
 ### `game_surf` Double-Buffering
 

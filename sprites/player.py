@@ -26,16 +26,17 @@ class Player(pygame.sprite.Sprite):
             self.lives = PLAYER_LIVES
         self.speed = PLAYER_SPEED
         self.invulnerable = False
-        self.invuln_start = pygame.time.get_ticks()
+        self.invuln_timer = 0
         self.image.set_alpha(255)
 
     def update(self, *args):
         if self.invulnerable:
-            now = pygame.time.get_ticks()
-            if now - self.invuln_start > INVULNERABLE_MS:
+            dt = args[0] if args else 16
+            self.invuln_timer -= dt
+            if self.invuln_timer <= 0:
                 self.invulnerable = False
                 self.image.set_alpha(255)
-            elif ((now - self.invuln_start) // 100) % 2 == 0:
+            elif (int(self.invuln_timer / 100)) % 2 == 0:
                 self.image.set_alpha(0)
             else:
                 self.image.set_alpha(255)
@@ -50,5 +51,5 @@ class Player(pygame.sprite.Sprite):
     def take_hit(self):
         self.lives -= 1
         self.invulnerable = True
-        self.invuln_start = pygame.time.get_ticks()
+        self.invuln_timer = INVULNERABLE_MS
         self.rect.midbottom = (GAME_WIDTH // 2, WINDOW_HEIGHT - PLAYER_BOTTOM_MARGIN)

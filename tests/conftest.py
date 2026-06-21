@@ -1,0 +1,37 @@
+import os
+os.environ["SDL_VIDEODRIVER"] = "dummy"
+os.environ["SDL_AUDIODRIVER"] = "dummy"
+
+import json
+import tempfile
+
+import pytest
+import pygame
+
+import game as game_module
+from game import Game
+from settings import GameState
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _pygame_init():
+    pygame.init()
+    yield
+    pygame.quit()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_high_score(monkeypatch, tmp_path):
+    f = tmp_path / "high_score.json"
+    f.write_text("0")
+    monkeypatch.setattr(game_module, "HIGH_SCORE_FILE", str(f))
+    yield
+
+
+@pytest.fixture
+def game():
+    g = Game()
+    if g.state == GameState.INTRO:
+        g.state = GameState.PLAYING
+        g.transition_timer = 0
+    yield g

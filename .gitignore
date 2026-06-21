@@ -4,6 +4,7 @@ high_score.json
 
 # AI tooling
 .claude/
+.opencode/
 .agents/
 skills-lock.json
 AGENTS.md

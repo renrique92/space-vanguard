@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 import pygame
 
 WINDOW_WIDTH = 1000
@@ -120,3 +122,11 @@ GAME_OVER_LINE = WINDOW_HEIGHT - 80
 SCORE_MULT_START = 3.0
 SCORE_MULT_DECAY = 10
 SCORE_MULT_MIN = 0.3
+
+
+class GameState(Enum):
+    INTRO = auto()
+    PLAYING = auto()
+    PAUSED = auto()
+    GAME_OVER = auto()
+    WIN = auto()
