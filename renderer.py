@@ -17,12 +17,17 @@ class Renderer:
 
     def draw(self, state, level, transition_timer, player, formation,
              player_bullets, enemy_bullets, particles, flash_fx,
-             score, high_score, lives, score_multiplier, accuracy):
+             ufo, bunkers, score, high_score, lives,
+             score_multiplier, accuracy):
         self.game_surf.fill(BLACK)
 
         for sx, sy, sb in self.stars:
             pygame.draw.circle(self.game_surf, (sb, sb, sb), (sx, sy), 1)
 
+        if ufo and state != GameState.INTRO:
+            self.game_surf.blit(ufo.image, ufo.rect)
+        for bunker in bunkers:
+            bunker.bricks.draw(self.game_surf)
         enemy_bullets.draw(self.game_surf)
         player_bullets.draw(self.game_surf)
         if state != GameState.INTRO:
@@ -81,11 +86,11 @@ class Renderer:
         elif state == GameState.GAME_OVER:
             self._draw_overlay("GAME OVER", "Press R to restart")
         elif state == GameState.WIN:
-            self._draw_overlay("YOU WIN!", "Press R to restart")
+            self._draw_overlay("YOU WIN!", "Press R to restart", score)
 
         pygame.display.flip()
 
-    def _draw_overlay(self, title, subtitle):
+    def _draw_overlay(self, title, subtitle, score=None):
         overlay = pygame.Surface(
             (WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA,
         )
@@ -94,6 +99,7 @@ class Renderer:
 
         ft = pygame.font.Font(None, 72)
         fs = pygame.font.Font(None, 36)
+        fv = pygame.font.Font(None, 28)
 
         img_t = ft.render(title, True, TEXT_ACCENT)
         r_t = img_t.get_rect(
@@ -106,3 +112,12 @@ class Renderer:
             center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 20)
         )
         self.screen.blit(img_s, r_s)
+
+        if score is not None:
+            img_score = fv.render(
+                f"Final Score: {score}", True, TEXT_ACCENT,
+            )
+            r_score = img_score.get_rect(
+                center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 65)
+            )
+            self.screen.blit(img_score, r_score)

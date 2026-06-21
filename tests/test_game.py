@@ -6,9 +6,11 @@ from settings import GameState
 from sprites.bullet import Bullet
 from sprites.enemy import Enemy, EnemyFormation
 from settings import (
-    GAME_WIDTH, WINDOW_HEIGHT, PLAYER_LIVES, LEVELS,
-    SCORE_MULT_START, SCORE_MULT_DECAY, SCORE_MULT_MIN,
-    TOTAL_LEVELS, INVULNERABLE_MS,
+    BUNKER_COUNT, ENEMY_ANIM_INTERVAL, GAME_WIDTH,
+    WINDOW_HEIGHT, PLAYER_LIVES, LEVELS, SCORE_MULT_START,
+    SCORE_MULT_DECAY, SCORE_MULT_MIN, TOTAL_LEVELS,
+    INVULNERABLE_MS, UFO_W, UFO_SPEED, UFO_Y,
+    UFO_SPAWN_MIN, UFO_SPAWN_MAX,
 )
 
 
@@ -117,6 +119,21 @@ class TestEnemyFormation:
             f = EnemyFormation(config)
             expected = sum(sum(row) for row in config["pattern"])
             assert len(f.enemies) == expected, f"Level {idx + 1}: expected {expected}, got {len(f.enemies)}"
+
+    def test_animation_frames_alternate(self, game):
+        before = [e.image for e in game.formation.enemies]
+        game._update(ENEMY_ANIM_INTERVAL)
+        after = [e.image for e in game.formation.enemies]
+        changed = sum(
+            1 for b, a in zip(before, after) if b is not a
+        )
+        assert changed > 0
+
+    def test_animation_does_not_switch_too_early(self, game):
+        before = [e.image for e in game.formation.enemies]
+        game._update(ENEMY_ANIM_INTERVAL - 1)
+        after = [e.image for e in game.formation.enemies]
+        assert all(b is a for b, a in zip(before, after))
 
 
 class TestPlayer:
@@ -352,3 +369,142 @@ class TestParticles:
         for _ in range(10):
             mf.update(16)
         assert not mf.alive()
+
+
+class TestUFO:
+    def test_ufo_starts_none(self, game):
+        assert game.ufo is None
+        assert game.ufo_spawn_timer == 0
+
+    def test_ufo_spawns_after_delay(self, game):
+        game.ufo_spawn_delay = 100
+        game.ufo_spawn_timer = 100
+        game._update_ufo(16)
+        assert game.ufo is not None
+
+    def test_ufo_moves_across_screen(self, game):
+        from sprites.ufo import UFO
+        u = UFO()
+        x_before = u.rect.x
+        u.update(16)
+        assert u.rect.x != x_before
+
+    def test_ufo_offscreen_detected(self, game):
+        from sprites.ufo import UFO
+        u = UFO()
+        u.rect.x = GAME_WIDTH + 10
+        u.update(16)
+        assert u.rect.left > GAME_WIDTH
+        u.rect.x = -UFO_W - 10
+        u.update(16)
+        assert u.rect.right < 0
+
+    def test_ufo_hit_adds_score(self, game):
+        from sprites.ufo import UFO
+        from sprites.bullet import Bullet
+        u = UFO()
+        game.ufo = u
+        score_before = game.score
+        bullet = Bullet(u.rect.centerx, u.rect.top, -9, is_player=True)
+        game.player_bullets.add(bullet)
+        game._pending_shots.add(bullet)
+        game._update_ufo(16)
+        assert game.score > score_before
+        assert game.ufo is None
+
+    def test_ufo_reset_on_level_advance(self, game):
+        game.ufo = object()
+        game._advance_level()
+        assert game.ufo is None
+        assert game.ufo_spawn_timer == 0
+
+    def test_ufo_reset_on_game_reset(self, game):
+        game.ufo = object()
+        game.state = GameState.GAME_OVER
+        game._reset()
+        assert game.ufo is None
+        assert game.ufo_spawn_timer == 0
+
+    def test_ufo_spawns_in_random_direction(self, game):
+        from sprites.ufo import UFO
+        dirs = set()
+        for _ in range(50):
+            u = UFO()
+            dirs.add(u.direction)
+        assert -1 in dirs
+        assert 1 in dirs
+
+
+class TestBunker:
+    def test_bunkers_created(self, game):
+        assert len(game.bunkers) == BUNKER_COUNT
+
+    def test_bunker_has_bricks(self, game):
+        for b in game.bunkers:
+            assert len(b.bricks) > 0
+
+    def test_bunker_bullet_destroyed(self, game):
+        from sprites.bullet import Bullet
+        bunker = game.bunkers[0]
+        brick_count_before = len(bunker.bricks)
+        target = list(bunker.bricks)[0]
+        bullet = Bullet(target.rect.centerx, target.rect.centery, -9, is_player=True)
+        game.player_bullets.add(bullet)
+        game._update(16)
+        assert len(bunker.bricks) < brick_count_before
+        assert not bullet.alive()
+
+    def test_bunker_blocks_enemy_bullet(self, game):
+        from sprites.bullet import Bullet
+        bunker = game.bunkers[0]
+        target = list(bunker.bricks)[0]
+        bullet = Bullet(target.rect.centerx, target.rect.centery, 5, is_player=False)
+        game.enemy_bullets.add(bullet)
+        game.player.invulnerable = False
+        game._update(16)
+        assert not bullet.alive()
+
+    def test_bunker_reset_on_level_advance(self, game):
+        old = game.bunkers
+        game._advance_level()
+        assert game.bunkers is not old
+        assert len(game.bunkers) == BUNKER_COUNT
+
+    def test_bunker_reset_on_game_reset(self, game):
+        game.bunkers = []
+        game._reset()
+        assert len(game.bunkers) == BUNKER_COUNT
+
+    def test_bunker_bricks_positioned_correctly(self, game):
+        for bunker in game.bunkers:
+            for brick in bunker.bricks:
+                assert brick.rect.y > 0
+                assert brick.rect.x < GAME_WIDTH
+
+
+class TestBGM:
+    def test_play_bgm_does_not_crash(self, game):
+        game.sound.play_bgm()
+        game.sound.stop_bgm()
+
+    def test_bgm_stops_on_game_over(self, game):
+        game.sound.play_bgm()
+        game.player.invulnerable = False
+        game.player.lives = 1
+        bullet = __import__('sprites.bullet', fromlist=['Bullet']).Bullet(
+            game.player.rect.centerx, game.player.rect.top, 5, is_player=False
+        )
+        game.enemy_bullets.add(bullet)
+        game._update(16)
+        assert game.state == GameState.GAME_OVER
+
+    def test_bgm_stops_on_reset(self, game):
+        game.sound.play_bgm()
+        game._reset()
+        # no crash
+
+    def test_bgm_starts_on_intro_end(self, game):
+        g = Game()
+        assert g.state == GameState.INTRO
+        g.sound.play_bgm()
+        g.sound.stop_bgm()

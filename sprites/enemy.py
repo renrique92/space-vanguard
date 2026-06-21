@@ -3,8 +3,8 @@ import random
 from settings import (
     ENEMY_W, ENEMY_H, ENEMY_H_GAP, ENEMY_V_GAP,
     ENEMY_TOP, ENEMY_BASE_SPEED, ENEMY_STEP_DOWN,
-    ENEMY_AUTO_STEP, ENEMY_BOUNDARY, GAME_WIDTH,
-    BULLET_W, WHITE, ENEMY_SHOOT_RATE_BASE,
+    ENEMY_AUTO_STEP, ENEMY_ANIM_INTERVAL, ENEMY_BOUNDARY,
+    GAME_WIDTH, BULLET_W, WHITE, ENEMY_SHOOT_RATE_BASE,
     ENEMY_SHOOT_RATE_PER_ENEMY, GAME_OVER_LINE
 )
 
@@ -12,12 +12,26 @@ from settings import (
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y, color, points):
         super().__init__()
-        self.image = pygame.Surface((ENEMY_W, ENEMY_H))
-        self.image.fill(color)
-        pygame.draw.rect(self.image, WHITE, (8, 4, 6, 7))
-        pygame.draw.rect(self.image, WHITE, (ENEMY_W - 14, 4, 6, 7))
+        w, h = ENEMY_W, ENEMY_H
+        self.frame_a = pygame.Surface((w, h))
+        self.frame_a.fill(color)
+        pygame.draw.rect(self.frame_a, WHITE, (8, 4, 6, 7))
+        pygame.draw.rect(self.frame_a, WHITE, (w - 14, 4, 6, 7))
+        self.frame_b = pygame.Surface((w, h))
+        self.frame_b.fill(color)
+        pygame.draw.rect(self.frame_b, WHITE, (6, 6, 6, 7))
+        pygame.draw.rect(self.frame_b, WHITE, (w - 12, 6, 6, 7))
+        self.image = self.frame_a
         self.rect = self.image.get_rect(topleft=(x, y))
         self.points = points
+        self._anim_timer = 0
+
+    def update(self, *args):
+        dt = args[0] if args else 16
+        self._anim_timer += dt
+        if self._anim_timer >= ENEMY_ANIM_INTERVAL:
+            self._anim_timer = 0
+            self.image = self.frame_b if self.image is self.frame_a else self.frame_a
 
     def get_shoot_position(self):
         return (self.rect.centerx - BULLET_W // 2, self.rect.bottom)
@@ -48,6 +62,9 @@ class EnemyFormation:
     def update(self, *args):
         if not self.enemies:
             return
+
+        dt = args[0] if args else 16
+        self.enemies.update(dt)
 
         for enemy in self.enemies:
             if self.direction == 1 and enemy.rect.right >= GAME_WIDTH - ENEMY_BOUNDARY:

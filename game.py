@@ -5,17 +5,20 @@ import random
 import pygame
 
 from settings import (
-    BULLET_W, ENEMY_AUTO_STEP_INTERVAL, ENEMY_BULLET_SPEED,
-    FPS, GAME_WIDTH, GameState, LEVELS, MAX_LIVES,
-    MAX_PLAYER_BULLETS, PLAYER_BULLET_H, PLAYER_BULLET_SPEED,
-    SCORE_MULT_START, SCORE_MULT_DECAY, SCORE_MULT_MIN,
-    SHOT_DELAY, TOTAL_LEVELS, WINDOW_HEIGHT, WINDOW_WIDTH,
+    BULLET_W, BUNKER_COUNT, ENEMY_AUTO_STEP_INTERVAL,
+    ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, GameState, LEVELS,
+    MAX_LIVES, MAX_PLAYER_BULLETS, PLAYER_BULLET_H,
+    PLAYER_BULLET_SPEED, SCORE_MULT_START, SCORE_MULT_DECAY,
+    SCORE_MULT_MIN, SHOT_DELAY, TOTAL_LEVELS,
+    UFO_SPAWN_MIN, UFO_SPAWN_MAX, WINDOW_HEIGHT, WINDOW_WIDTH,
 )
 from sounds import SoundManager
 from effects import ScreenShake, MuzzleFlash, spawn_explosion
 from sprites.bullet import Bullet
+from sprites.bunker import Bunker
 from sprites.enemy import EnemyFormation
 from sprites.player import Player
+from sprites.ufo import UFO
 from ui.info_panel import InfoPanel
 from renderer import Renderer
 
@@ -61,6 +64,12 @@ class Game:
         self.shots_fired = 0
         self.shots_hit = 0
         self._pending_shots = set()
+
+        self.ufo = None
+        self.ufo_spawn_timer = 0
+        self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
+
+        self.bunkers = self._create_bunkers()
 
         self.game_surf = pygame.Surface((GAME_WIDTH, WINDOW_HEIGHT))
         self.renderer = Renderer(
@@ -136,13 +145,14 @@ class Game:
             if self.transition_timer <= 0:
                 if self.state == GameState.INTRO:
                     self.state = GameState.PLAYING
+                    self.sound.play_bgm()
                 else:
                     self._advance_level()
             return
 
         self.screen_shake.update(dt)
         self.player.update(dt)
-        self.formation.update()
+        self.formation.update(dt)
 
         self.auto_step_timer += dt
         if self.auto_step_timer >= ENEMY_AUTO_STEP_INTERVAL:
@@ -161,6 +171,16 @@ class Game:
         self.enemy_bullets.update()
         self.particles.update(dt)
         self.flash_fx.update(dt)
+
+        self._update_ufo(dt)
+
+        for bunker in self.bunkers:
+            pygame.sprite.groupcollide(
+                self.player_bullets, bunker.bricks, True, True
+            )
+            pygame.sprite.groupcollide(
+                self.enemy_bullets, bunker.bricks, True, True
+            )
 
         hits = pygame.sprite.groupcollide(
             self.player_bullets, self.formation.enemies, True, True
@@ -191,11 +211,13 @@ class Game:
                 self.screen_shake.trigger(8, 200)
                 if self.player.lives <= 0:
                     self.state = GameState.GAME_OVER
+                    self.sound.stop_bgm()
                     self._save_high_score()
                     self.sound.play("game_over")
 
         if self.formation.reached_game_over():
             self.state = GameState.GAME_OVER
+            self.sound.stop_bgm()
             self._save_high_score()
             self.sound.play("game_over")
 
@@ -209,8 +231,49 @@ class Game:
                 self.enemy_bullets.empty()
             else:
                 self.state = GameState.WIN
+                self.sound.stop_bgm()
                 self._save_high_score()
                 self.sound.play("win")
+
+    def _update_ufo(self, dt):
+        if self.ufo is None:
+            self.ufo_spawn_timer += dt
+            if self.ufo_spawn_timer >= self.ufo_spawn_delay:
+                self.ufo = UFO()
+                self.sound.play("ufo")
+                self.ufo_spawn_timer = 0
+        else:
+            self.ufo.update(dt)
+            off_screen = (
+                self.ufo.rect.right < 0 or self.ufo.rect.left > GAME_WIDTH
+            )
+            if off_screen:
+                self.ufo = None
+                self.ufo_spawn_delay = random.randint(
+                    UFO_SPAWN_MIN, UFO_SPAWN_MAX
+                )
+                self.ufo_spawn_timer = 0
+            else:
+                hits = pygame.sprite.spritecollide(
+                    self.ufo, self.player_bullets, True
+                )
+                if hits:
+                    bullet = hits[0]
+                    bullet.has_hit = True
+                    self.score += self.ufo.points
+                    self.shots_hit += 1
+                    self.particles.add(
+                        spawn_explosion(
+                            self.ufo.rect.centerx, self.ufo.rect.centery,
+                            (180, 100, 200),
+                        )
+                    )
+                    self.sound.play("explosion")
+                    self.ufo = None
+                    self.ufo_spawn_delay = random.randint(
+                        UFO_SPAWN_MIN, UFO_SPAWN_MAX
+                    )
+                    self.ufo_spawn_timer = 0
 
     def _draw(self):
         self.renderer.draw(
@@ -218,9 +281,15 @@ class Game:
             self.player, self.formation,
             self.player_bullets, self.enemy_bullets,
             self.particles, self.flash_fx,
+            self.ufo, self.bunkers,
             self.score, self.high_score, self.player.lives,
             self.score_multiplier, self.accuracy,
         )
+
+    @staticmethod
+    def _create_bunkers():
+        spacing = GAME_WIDTH // (BUNKER_COUNT + 1)
+        return [Bunker(spacing * i) for i in range(1, BUNKER_COUNT + 1)]
 
     def _load_high_score(self):
         try:
@@ -236,6 +305,7 @@ class Game:
                 json.dump(self.high_score, f)
 
     def _reset(self):
+        self.sound.stop_bgm()
         self.score = 0
         self.level = 1
         self.state = GameState.INTRO
@@ -251,6 +321,10 @@ class Game:
         self.enemy_bullets.empty()
         self.particles.empty()
         self.flash_fx.empty()
+        self.ufo = None
+        self.ufo_spawn_timer = 0
+        self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
+        self.bunkers = self._create_bunkers()
         self.player.reset()
         self.formation = EnemyFormation(LEVELS[0])
 
@@ -264,6 +338,10 @@ class Game:
         self.level += 1
         self.transition_timer = 0
         self.elapsed_time = 0
+        self.ufo = None
+        self.ufo_spawn_timer = 0
+        self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
+        self.bunkers = self._create_bunkers()
         self.formation = EnemyFormation(LEVELS[self.level - 1])
         self.player.reset(reset_lives=False)
         self.auto_step_timer = 0
