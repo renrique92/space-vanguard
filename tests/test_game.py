@@ -452,11 +452,18 @@ class TestBunker:
         bunker = game.bunkers[0]
         brick_count_before = len(bunker.bricks)
         target = list(bunker.bricks)[0]
-        bullet = Bullet(target.rect.centerx, target.rect.centery, -9, is_player=True)
-        game.player_bullets.add(bullet)
+        assert target.hp == 2
+        bullet1 = Bullet(target.rect.centerx, target.rect.centery, -9, is_player=True)
+        game.player_bullets.add(bullet1)
         game._update(16)
-        assert len(bunker.bricks) < brick_count_before
-        assert not bullet.alive()
+        assert len(bunker.bricks) == brick_count_before
+        assert not bullet1.alive()
+        assert target.hp == 1
+        bullet2 = Bullet(target.rect.centerx, target.rect.centery, -9, is_player=True)
+        game.player_bullets.add(bullet2)
+        game._update(16)
+        assert len(bunker.bricks) == brick_count_before - 1
+        assert not bullet2.alive()
 
     def test_bunker_blocks_enemy_bullet(self, game):
         from sprites.bullet import Bullet
@@ -664,16 +671,11 @@ class TestPowerUp:
 
     def test_rapid_fire_custom_shot_delay(self, game):
         game.player.rapid_timer = 1000
-        import pygame as pg
-        old = pg.key.get_pressed
-        pg.key.get_pressed = lambda: {pg.K_SPACE: 1}.get
-        from game import Game
-        delay = 80
-        now = game.last_shot_time
-        game.last_shot_time = now - delay
-        # just check property exists and works
+        assert game._shot_timer == 0
+        shot_delay = 80
+        game._shot_timer = shot_delay
+        assert game._shot_timer > 0
         assert game.player.rapid_timer > 0
-        pg.key.get_pressed = old
 
     def test_score_powerup_overrides_multiplier(self, game):
         game.player.score_timer = 1000

@@ -39,14 +39,21 @@ class Game:
         self.score = 0
         self.high_score = self._load_high_score()
 
-        self.stars = [
-            (
-                random.randint(0, GAME_WIDTH),
-                random.randint(0, WINDOW_HEIGHT),
-                random.randint(80, 255),
-            )
-            for _ in range(120)
+        self.stars = []
+        layers = [
+            (40, 0.2, 80, 1),
+            (40, 0.5, 160, 1),
+            (40, 1.0, 255, 2),
         ]
+        for count, speed, base_brightness, size in layers:
+            for _ in range(count):
+                self.stars.append([
+                    random.uniform(0, GAME_WIDTH),
+                    random.uniform(0, WINDOW_HEIGHT),
+                    base_brightness,
+                    size,
+                    speed,
+                ])
 
         self.sound = SoundManager()
         self.screen_shake = ScreenShake()
@@ -62,11 +69,12 @@ class Game:
         self.flash_fx = pygame.sprite.Group()
         self.info_panel = InfoPanel()
         self.auto_step_timer = 0
-        self.last_shot_time = 0
+        self._shot_timer = 0
         self.elapsed_time = 0
         self.shots_fired = 0
         self.shots_hit = 0
         self._pending_shots = set()
+        self.score_popups = []
 
         self.powerups = pygame.sprite.Group()
         self.powerup_msg = ""
@@ -115,19 +123,18 @@ class Game:
         if self.state == GameState.PLAYING and self.transition_timer <= 0:
             keys = pygame.key.get_pressed()
             self.player.handle_input(keys)
-            now = pygame.time.get_ticks()
             shot_delay = 80 if self.player.rapid_timer > 0 else SHOT_DELAY
             if (
                 keys[pygame.K_SPACE]
                 and len(self.player_bullets) < MAX_PLAYER_BULLETS
-                and now - self.last_shot_time >= shot_delay
+                and self._shot_timer <= 0
             ):
                 if self.player.spread_timer > 0:
                     bullets = self._create_spread()
                 else:
                     bullets = self._create_bullet()
                 if bullets:
-                    self.last_shot_time = now
+                    self._shot_timer = shot_delay
                     for b in bullets:
                         self.player_bullets.add(b)
                         self._pending_shots.add(b)
@@ -164,6 +171,7 @@ class Game:
                     self._advance_level()
             return
 
+        self._update_stars(dt)
         self.screen_shake.update(dt)
         self.player.update(dt)
 
@@ -193,14 +201,19 @@ class Game:
         self.enemy_bullets.update()
         self.particles.update(dt)
         self.flash_fx.update(dt)
+        self._update_score_popups(dt)
 
         self.powerup_spawn_cooldown += dt
         self._update_ufo(dt)
 
         for bunker in self.bunkers:
-            pygame.sprite.groupcollide(
-                self.player_bullets, bunker.bricks, True, True
-            )
+            for bullet in self.player_bullets.sprites():
+                if not bullet.alive():
+                    continue
+                bricks = pygame.sprite.spritecollide(bullet, bunker.bricks, False)
+                if bricks:
+                    bullet.kill()
+                    bricks[0].hit()
             pygame.sprite.groupcollide(
                 self.enemy_bullets, bunker.bricks, True, True
             )
@@ -214,7 +227,15 @@ class Game:
             bullet.has_hit = True
             for enemy in enemies:
                 self.shots_hit += 1
-                self.score += int(enemy.points * mult)
+                pts = int(enemy.points * mult)
+                self.score += pts
+                self.score_popups.append({
+                    "text": f"+{pts}",
+                    "x": enemy.rect.centerx,
+                    "y": enemy.rect.centery,
+                    "timer": 800,
+                    "start_y": enemy.rect.centery,
+                })
                 color = enemy.image.get_at((0, 0))[:3]
                 self.particles.add(
                     spawn_explosion(
@@ -247,6 +268,7 @@ class Game:
         self.powerups.update(dt)
 
         self._resolve_shots()
+        self._shot_timer = max(0, self._shot_timer - dt)
 
         if not self.player.invulnerable:
             hit = pygame.sprite.spritecollide(
@@ -254,6 +276,12 @@ class Game:
             )
             if hit:
                 self.player.take_hit()
+                self.particles.add(
+                    spawn_explosion(
+                        self.player.rect.centerx, self.player.rect.centery,
+                        (0, 200, 255),
+                    )
+                )
                 self.sound.play("player_hit")
                 self.screen_shake.trigger(8, 200)
                 if self.player.lives <= 0:
@@ -281,6 +309,20 @@ class Game:
                 self.sound.stop_bgm()
                 self._save_high_score()
                 self.sound.play("win")
+
+    def _update_score_popups(self, dt):
+        for popup in self.score_popups[:]:
+            popup["timer"] -= dt
+            popup["y"] -= 0.5 * (dt / 16)
+            if popup["timer"] <= 0:
+                self.score_popups.remove(popup)
+
+    def _update_stars(self, dt):
+        for s in self.stars:
+            s[1] += s[4] * (dt / 16)
+            if s[1] > WINDOW_HEIGHT:
+                s[1] = 0
+                s[0] = random.uniform(0, GAME_WIDTH)
 
     def _create_bullet(self):
         if len(self.player_bullets) >= MAX_PLAYER_BULLETS:
@@ -327,8 +369,16 @@ class Game:
                 if hits:
                     bullet = hits[0]
                     bullet.has_hit = True
-                    self.score += self.ufo.points
+                    pts = self.ufo.points
+                    self.score += pts
                     self.shots_hit += 1
+                    self.score_popups.append({
+                        "text": f"+{pts}",
+                        "x": self.ufo.rect.centerx,
+                        "y": self.ufo.rect.centery,
+                        "timer": 800,
+                        "start_y": self.ufo.rect.centery,
+                    })
                     self.particles.add(
                         spawn_explosion(
                             self.ufo.rect.centerx, self.ufo.rect.centery,
@@ -363,6 +413,7 @@ class Game:
             powerup_msg=self.powerup_msg,
             active_pu_type=active_pu_type,
             active_pu_remaining=active_pu_remaining,
+            score_popups=self.score_popups,
         )
 
     @staticmethod
@@ -391,11 +442,12 @@ class Game:
         self._prev_state = GameState.INTRO
         self.transition_timer = 2000
         self.auto_step_timer = 0
-        self.last_shot_time = 0
+        self._shot_timer = 0
         self.elapsed_time = 0
         self.shots_fired = 0
         self.shots_hit = 0
         self._pending_shots.clear()
+        self.score_popups.clear()
         self.player_bullets.empty()
         self.enemy_bullets.empty()
         self.particles.empty()

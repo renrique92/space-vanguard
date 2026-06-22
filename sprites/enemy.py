@@ -30,7 +30,7 @@ class Enemy(pygame.sprite.Sprite):
         dt = args[0] if args else 16
         self._anim_timer += dt
         if self._anim_timer >= ENEMY_ANIM_INTERVAL:
-            self._anim_timer = 0
+            self._anim_timer -= ENEMY_ANIM_INTERVAL
             self.image = self.frame_b if self.image is self.frame_a else self.frame_a
 
     def get_shoot_position(self):
@@ -111,12 +111,4 @@ class EnemyFormation:
                 return True
         return False
 
-    def reset(self, config=None):
-        self.enemies.empty()
-        self.direction = 1
-        self.speed = ENEMY_BASE_SPEED
-        self._frac_x = 0.0
-        if config is not None:
-            self.config = config
-            self.initial_count = sum(sum(row) for row in config["pattern"])
-        self._create()
+

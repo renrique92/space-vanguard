@@ -16,16 +16,18 @@ class Renderer:
         self.info_panel = info_panel
         self.stars = stars
         self.font_level = pygame.font.Font(None, 28)
+        self.font_popup = pygame.font.Font(None, 20)
 
     def draw(self, state, level, transition_timer, player, formation,
              player_bullets, enemy_bullets, particles, flash_fx,
              ufo, bunkers, powerups, score, high_score, lives,
              score_multiplier, accuracy,
-             powerup_msg="", active_pu_type=None, active_pu_remaining=0):
+             powerup_msg="", active_pu_type=None, active_pu_remaining=0,
+             score_popups=None):
         self.game_surf.fill(BLACK)
 
-        for sx, sy, sb in self.stars:
-            pygame.draw.circle(self.game_surf, (sb, sb, sb), (sx, sy), 1)
+        for s in self.stars:
+            pygame.draw.circle(self.game_surf, (s[2], s[2], s[2]), (int(s[0]), int(s[1])), s[3])
 
         if ufo and state != GameState.INTRO:
             self.game_surf.blit(ufo.image, ufo.rect)
@@ -38,6 +40,13 @@ class Renderer:
         powerups.draw(self.game_surf)
         particles.draw(self.game_surf)
         flash_fx.draw(self.game_surf)
+
+        if score_popups:
+            for p in score_popups:
+                alpha = max(0, int(255 * p["timer"] / 800))
+                text = self.font_popup.render(p["text"], True, (255, 255, 255))
+                text.set_alpha(alpha)
+                self.game_surf.blit(text, (p["x"] - text.get_width() // 2, p["y"]))
         self.game_surf.blit(player.image, player.rect)
 
         self._draw_level_indicator(level)
