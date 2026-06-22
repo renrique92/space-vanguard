@@ -522,7 +522,8 @@ class TestBGM:
 
     def test_bgm_starts_on_intro_end(self, game):
         g = Game()
-        assert g.state == GameState.INTRO
+        assert g.state == GameState.TITLE
+        g.state = GameState.INTRO
         g.sound.play_bgm()
         g.sound.stop_bgm()
 

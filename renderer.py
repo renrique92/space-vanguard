@@ -17,6 +17,7 @@ class Renderer:
         self.stars = stars
         self.font_level = pygame.font.Font(None, 28)
         self.font_popup = pygame.font.Font(None, 20)
+        self.workspace = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
 
     def draw(self, state, level, transition_timer, player, formation,
              player_bullets, enemy_bullets, particles, flash_fx,
@@ -24,6 +25,17 @@ class Renderer:
              score_multiplier, accuracy,
              powerup_msg="", active_pu_type=None, active_pu_remaining=0,
              score_popups=None, boss=None):
+        if state == GameState.TITLE:
+            self.screen.fill(BLACK)
+            sw, sh = self.screen.get_size()
+            for s in self.stars:
+                x = int(s[0] * sw / GAME_WIDTH)
+                y = int(s[1] * sh / WINDOW_HEIGHT)
+                pygame.draw.circle(self.screen, (s[2], s[2], s[2]), (x, y), s[3])
+            self._draw_title()
+            pygame.display.flip()
+            return
+
         self.game_surf.fill(BLACK)
 
         for s in self.stars:
@@ -118,21 +130,47 @@ class Renderer:
         self.game_surf.blit(t1, r1)
         self.game_surf.blit(t2, r2)
 
+    def _draw_title(self):
+        ft = pygame.font.Font(None, 72)
+        fs = pygame.font.Font(None, 28)
+        title = ft.render("SPACE VANGUARD", True, TEXT_ACCENT)
+        sub = fs.render("Press SPACE to start", True, TEXT_MAIN)
+        ctrl = fs.render("Arrows: Move   SPACE: Shoot   P: Pause   F: Fullscreen   M: Mute   ESC: Quit", True, (140, 140, 140))
+        sw, sh = self.screen.get_size()
+        r1 = title.get_rect(center=(sw // 2, sh // 2 - 40))
+        r2 = sub.get_rect(center=(sw // 2, sh // 2 + 20))
+        r3 = ctrl.get_rect(center=(sw // 2, sh // 2 + 80))
+        self.screen.blit(title, r1)
+        self.screen.blit(sub, r2)
+        self.screen.blit(ctrl, r3)
+
     def _present(self, state, score, high_score, lives,
                  score_multiplier, accuracy):
         sx, sy = self.screen_shake.get_offset()
-        self.screen.fill(BLACK)
-        self.screen.blit(self.game_surf, (sx, sy))
+        sw, sh = self.screen.get_size()
+        use_scale = sw != WINDOW_WIDTH or sh != WINDOW_HEIGHT
+
+        if use_scale:
+            target = self.workspace
+        else:
+            target = self.screen
+
+        target.fill(BLACK)
+        target.blit(self.game_surf, (sx, sy))
 
         pygame.draw.line(
-            self.screen, DIVIDER,
+            target, DIVIDER,
             (GAME_WIDTH, 0), (GAME_WIDTH, WINDOW_HEIGHT), 3,
         )
 
         self.info_panel.draw(
-            self.screen, score, high_score, lives,
+            target, score, high_score, lives,
             state, score_multiplier, accuracy,
         )
+
+        if use_scale:
+            scaled = pygame.transform.scale(self.workspace, (sw, sh))
+            self.screen.blit(scaled, (0, 0))
 
         if state == GameState.PAUSED:
             self._draw_overlay("PAUSED", "Press P to resume")
@@ -144,9 +182,8 @@ class Renderer:
         pygame.display.flip()
 
     def _draw_overlay(self, title, subtitle, score=None):
-        overlay = pygame.Surface(
-            (WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA,
-        )
+        sw, sh = self.screen.get_size()
+        overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         self.screen.blit(overlay, (0, 0))
 
@@ -155,15 +192,11 @@ class Renderer:
         fv = pygame.font.Font(None, 28)
 
         img_t = ft.render(title, True, TEXT_ACCENT)
-        r_t = img_t.get_rect(
-            center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 40)
-        )
+        r_t = img_t.get_rect(center=(sw // 2, sh // 2 - 40))
         self.screen.blit(img_t, r_t)
 
         img_s = fs.render(subtitle, True, TEXT_MAIN)
-        r_s = img_s.get_rect(
-            center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 20)
-        )
+        r_s = img_s.get_rect(center=(sw // 2, sh // 2 + 20))
         self.screen.blit(img_s, r_s)
 
         if score is not None:
@@ -171,6 +204,6 @@ class Renderer:
                 f"Final Score: {score}", True, TEXT_ACCENT,
             )
             r_score = img_score.get_rect(
-                center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 65)
+                center=(sw // 2, sh // 2 + 65)
             )
             self.screen.blit(img_score, r_score)

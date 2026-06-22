@@ -31,7 +31,7 @@ def _isolate_high_score(monkeypatch, tmp_path):
 @pytest.fixture
 def game():
     g = Game()
-    if g.state == GameState.INTRO:
+    if g.state in (GameState.TITLE, GameState.INTRO):
         g.state = GameState.PLAYING
         g.transition_timer = 0
     yield g

@@ -35,8 +35,8 @@ class Game:
         pygame.display.set_caption("Space Vanguard")
         self.clock = pygame.time.Clock()
         self.running = True
-        self.state = GameState.INTRO
-        self._prev_state = GameState.INTRO
+        self.state = GameState.TITLE
+        self._prev_state = GameState.TITLE
         self.score = 0
         self.high_score = self._load_high_score()
 
@@ -101,7 +101,7 @@ class Game:
             dt = self.clock.tick(FPS)
             self._handle_events()
 
-            if self.state in (GameState.INTRO, GameState.PLAYING):
+            if self.state in (GameState.TITLE, GameState.INTRO, GameState.PLAYING):
                 self._update(dt)
 
             self._draw()
@@ -111,17 +111,30 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            elif hasattr(pygame, 'WINDOWEVENT') and event.type == pygame.WINDOWEVENT:
+                if event.event == pygame.WINDOWEVENT_FOCUS_LOST and self.state == GameState.PLAYING:
+                    self._prev_state = self.state
+                    self.state = GameState.PAUSED
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
                 elif event.key == pygame.K_p:
                     if self.state == GameState.PAUSED:
                         self.state = self._prev_state
-                    elif self.state in (GameState.INTRO, GameState.PLAYING):
+                    elif self.state in (GameState.TITLE, GameState.INTRO, GameState.PLAYING):
                         self._prev_state = self.state
                         self.state = GameState.PAUSED
                 elif event.key == pygame.K_r and self.state in (GameState.GAME_OVER, GameState.WIN):
                     self._reset()
+                elif event.key == pygame.K_SPACE and self.state == GameState.TITLE:
+                    self.state = GameState.INTRO
+                    self.transition_timer = 2000
+                elif event.key == pygame.K_f:
+                    pygame.display.toggle_fullscreen()
+                elif event.key == pygame.K_m:
+                    self.sound.muted = not self.sound.muted
+                    if self.sound.muted:
+                        self.sound.stop_bgm()
 
         if self.state == GameState.PLAYING and self.transition_timer <= 0:
             keys = pygame.key.get_pressed()
@@ -161,6 +174,10 @@ class Game:
 
     def _update(self, dt):
         self.elapsed_time += dt
+        self._update_stars(dt)
+
+        if self.state == GameState.TITLE:
+            return
 
         if self.transition_timer > 0:
             self.transition_timer -= dt
@@ -173,8 +190,6 @@ class Game:
                 else:
                     self._advance_level()
             return
-
-        self._update_stars(dt)
         self.screen_shake.update(dt)
         self.player.update(dt)
 

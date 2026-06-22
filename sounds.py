@@ -8,6 +8,7 @@ import pygame
 class SoundManager:
     def __init__(self):
         self.available = True
+        self.muted = False
         try:
             if pygame.mixer.get_init():
                 pygame.mixer.quit()
@@ -33,11 +34,11 @@ class SoundManager:
         self.sounds["bgm"] = self._generate_bgm()
 
     def play(self, name):
-        if self.available and name in self.sounds:
+        if self.available and not self.muted and name in self.sounds:
             self.sounds[name].play()
 
     def play_bgm(self):
-        if self.available and "bgm" in self.sounds:
+        if self.available and not self.muted and "bgm" in self.sounds:
             self._bgm_channel = self.sounds["bgm"].play(loops=-1)
 
     def stop_bgm(self):
