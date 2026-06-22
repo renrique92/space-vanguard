@@ -306,9 +306,15 @@ class TestStateMachine:
         assert game.score == 0
         assert game.level == 1
 
-    def test_win_after_final_level(self, game):
+    def test_win_after_boss_defeated(self, game):
         game.level = TOTAL_LEVELS
         game.formation.enemies.empty()
+        game._update(16)
+        assert game.boss is not None
+        assert game.state == GameState.PLAYING
+        for _ in range(game.boss.max_hp):
+            game.boss.take_hit()
+        assert game.boss.hp <= 0
         game._update(16)
         assert game.state == GameState.WIN
 

@@ -66,6 +66,7 @@ LEVELS = [
         ],
         "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
         "points": [30, 25, 20, 15, 10],
+        "difficulty": {"speed": 1.0, "shoot": 1.0, "auto_step_ms": 4000},
     },
     {
         "pattern": [
@@ -77,6 +78,7 @@ LEVELS = [
         ],
         "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
         "points": [30, 25, 20, 15, 10],
+        "difficulty": {"speed": 1.1, "shoot": 1.2, "auto_step_ms": 3800},
     },
     {
         "pattern": [
@@ -88,6 +90,7 @@ LEVELS = [
         ],
         "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
         "points": [30, 25, 20, 15, 10],
+        "difficulty": {"speed": 1.2, "shoot": 1.4, "auto_step_ms": 3500},
     },
     {
         "pattern": [
@@ -98,6 +101,7 @@ LEVELS = [
         ],
         "colors": [RED, ORANGE, YELLOW, LIME],
         "points": [30, 25, 20, 15],
+        "difficulty": {"speed": 1.35, "shoot": 1.7, "auto_step_ms": 3000},
     },
     {
         "pattern": [
@@ -106,6 +110,7 @@ LEVELS = [
         ],
         "colors": [RED, ORANGE],
         "points": [35, 30],
+        "difficulty": {"speed": 1.5, "shoot": 2.0, "auto_step_ms": 2500},
     },
 ]
 

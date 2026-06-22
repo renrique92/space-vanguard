@@ -23,7 +23,7 @@ class Renderer:
              ufo, bunkers, powerups, score, high_score, lives,
              score_multiplier, accuracy,
              powerup_msg="", active_pu_type=None, active_pu_remaining=0,
-             score_popups=None):
+             score_popups=None, boss=None):
         self.game_surf.fill(BLACK)
 
         for s in self.stars:
@@ -37,6 +37,8 @@ class Renderer:
         player_bullets.draw(self.game_surf)
         if state != GameState.INTRO:
             formation.enemies.draw(self.game_surf)
+        if boss:
+            self.game_surf.blit(boss.image, boss.rect)
         powerups.draw(self.game_surf)
         particles.draw(self.game_surf)
         flash_fx.draw(self.game_surf)
@@ -52,6 +54,7 @@ class Renderer:
         self._draw_level_indicator(level)
         self._draw_powerup_popup(powerup_msg)
         self._draw_powerup_indicator(active_pu_type, active_pu_remaining)
+        self._draw_boss_hp(boss)
 
         if transition_timer > 0:
             self._draw_level_transition(state, level)
@@ -90,6 +93,17 @@ class Renderer:
         bg.fill((0, 0, 0))
         self.game_surf.blit(bg, (8, 8))
         self.game_surf.blit(text, (14, 11))
+
+    def _draw_boss_hp(self, boss):
+        if not boss:
+            return
+        bw = boss.w
+        bh = 8
+        bx = boss.rect.centerx - bw // 2
+        by = boss.rect.top - 14
+        pygame.draw.rect(self.game_surf, (60, 60, 60), (bx, by, bw, bh))
+        ratio = max(0, boss.hp / boss.max_hp)
+        pygame.draw.rect(self.game_surf, (255, 80, 80), (bx, by, int(bw * ratio), bh))
 
     def _draw_level_transition(self, state, level):
         ft = pygame.font.Font(None, 56)

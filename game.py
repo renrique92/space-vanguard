@@ -6,7 +6,7 @@ import pygame
 
 from classes import GameState, PowerUpType
 from settings import (
-    BULLET_W, BUNKER_COUNT, ENEMY_AUTO_STEP_INTERVAL,
+    BULLET_W, BUNKER_COUNT,
     ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, LEVELS,
     MAX_LIVES, MAX_PLAYER_BULLETS, PLAYER_BULLET_H,
     PLAYER_BULLET_SPEED, POWERUP_CHANCE, POWERUP_COOLDOWN,
@@ -16,6 +16,7 @@ from settings import (
 )
 from sounds import SoundManager
 from effects import ScreenShake, MuzzleFlash, spawn_explosion
+from sprites.boss import Boss
 from sprites.bullet import Bullet
 from sprites.bunker import Bunker
 from sprites.enemy import EnemyFormation
@@ -84,6 +85,8 @@ class Game:
         self.ufo = None
         self.ufo_spawn_timer = 0
         self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
+        self.boss = None
+        self.boss_shoot_timer = 0
 
         self.bunkers = self._create_bunkers()
 
@@ -179,7 +182,7 @@ class Game:
         self.formation.update(dt, speed_mult)
         self.auto_step_timer += int(dt * speed_mult)
 
-        if self.auto_step_timer >= ENEMY_AUTO_STEP_INTERVAL:
+        if self.auto_step_timer >= self.formation._diff["auto_step_ms"]:
             self.formation.auto_step_down()
             self.auto_step_timer = 0
 
@@ -192,9 +195,20 @@ class Game:
             result = self.formation.try_shoot()
         if result:
             x, y = result
-            self.enemy_bullets.add(
-                Bullet(x, y, ENEMY_BULLET_SPEED, is_player=False)
-            )
+            r = random.random()
+            if self.level >= 3 and r < 0.25:
+                self.enemy_bullets.add(
+                    Bullet(x, y, ENEMY_BULLET_SPEED + 3, is_player=False)
+                )
+            elif self.level >= 2 and r < 0.35:
+                self.enemy_bullets.add(
+                    Bullet(x, y, ENEMY_BULLET_SPEED, is_player=False,
+                           wiggle_amp=1.5, wiggle_freq=0.08)
+                )
+            else:
+                self.enemy_bullets.add(
+                    Bullet(x, y, ENEMY_BULLET_SPEED, is_player=False)
+                )
             self.sound.play("enemy_shoot")
 
         self.player_bullets.update()
@@ -205,6 +219,16 @@ class Game:
 
         self.powerup_spawn_cooldown += dt
         self._update_ufo(dt)
+
+        if self.boss:
+            self.boss.update(dt)
+            self.boss_shoot_timer += dt
+            if self.boss_shoot_timer >= 800:
+                self.boss_shoot_timer = 0
+                x, y = self.boss.try_shoot()
+                self.enemy_bullets.add(
+                    Bullet(x, y, ENEMY_BULLET_SPEED + 2, is_player=False)
+                )
 
         for bunker in self.bunkers:
             for bullet in self.player_bullets.sprites():
@@ -251,6 +275,29 @@ class Game:
                     )
                     self.powerup_spawn_cooldown = 0
 
+        if self.boss:
+            for bullet in self.player_bullets.sprites():
+                if bullet.has_hit:
+                    continue
+                if bullet.rect.colliderect(self.boss.rect):
+                    bullet.kill()
+                    self.shots_hit += 1
+                    self.boss.take_hit()
+                    self.particles.add(
+                        spawn_explosion(
+                            bullet.rect.centerx, bullet.rect.centery,
+                            (200, 100, 100),
+                        )
+                    )
+                    self.score += 50
+                    self.score_popups.append({
+                        "text": "+50",
+                        "x": self.boss.rect.centerx,
+                        "y": self.boss.rect.top,
+                        "timer": 800,
+                        "start_y": self.boss.rect.top,
+                    })
+
         collected = pygame.sprite.spritecollide(
             self.player, self.powerups, True
         )
@@ -296,7 +343,7 @@ class Game:
             self._save_high_score()
             self.sound.play("game_over")
 
-        if len(self.formation.enemies) == 0:
+        if len(self.formation.enemies) == 0 and self.boss is None:
             if self.level < TOTAL_LEVELS:
                 self.transition_timer = 2000
                 if self.player.lives < MAX_LIVES:
@@ -305,10 +352,14 @@ class Game:
                 self.player_bullets.empty()
                 self.enemy_bullets.empty()
             else:
-                self.state = GameState.WIN
-                self.sound.stop_bgm()
-                self._save_high_score()
-                self.sound.play("win")
+                self.boss = Boss()
+                self.boss_shoot_timer = 0
+
+        if self.boss and self.boss.hp <= 0:
+            self.state = GameState.WIN
+            self.sound.stop_bgm()
+            self._save_high_score()
+            self.sound.play("win")
 
     def _update_score_popups(self, dt):
         for popup in self.score_popups[:]:
@@ -414,6 +465,7 @@ class Game:
             active_pu_type=active_pu_type,
             active_pu_remaining=active_pu_remaining,
             score_popups=self.score_popups,
+            boss=self.boss,
         )
 
     @staticmethod
@@ -457,6 +509,8 @@ class Game:
         self.ufo = None
         self.ufo_spawn_timer = 0
         self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
+        self.boss = None
+        self.boss_shoot_timer = 0
         self.bunkers = self._create_bunkers()
         self.player.reset()
         self.formation = EnemyFormation(LEVELS[0])

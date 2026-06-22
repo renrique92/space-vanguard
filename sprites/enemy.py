@@ -45,6 +45,7 @@ class EnemyFormation:
         self.enemies = pygame.sprite.Group()
         self.initial_count = sum(sum(row) for row in config["pattern"])
         self._frac_x = 0.0
+        self._diff = config.get("difficulty", {"speed": 1.0, "shoot": 1.0, "auto_step_ms": 4000})
         self._create()
 
     def _create(self):
@@ -80,7 +81,7 @@ class EnemyFormation:
         mult = 1 + 0.7 * (1 - remaining / self.initial_count) if remaining > 0 else 1
         self.speed = ENEMY_BASE_SPEED * mult
 
-        self._frac_x += self.speed * self.direction * speed_mult
+        self._frac_x += self.speed * self.direction * speed_mult * self._diff["speed"]
         if abs(self._frac_x) >= 1:
             step = int(self._frac_x)
             for enemy in self.enemies:
@@ -99,7 +100,7 @@ class EnemyFormation:
     def try_shoot(self):
         if not self.enemies:
             return None
-        rate = ENEMY_SHOOT_RATE_BASE + ENEMY_SHOOT_RATE_PER_ENEMY * len(self.enemies)
+        rate = (ENEMY_SHOOT_RATE_BASE + ENEMY_SHOOT_RATE_PER_ENEMY * len(self.enemies)) * self._diff["shoot"]
         if random.random() < rate:
             shooter = random.choice(self.enemies.sprites())
             return shooter.get_shoot_position()

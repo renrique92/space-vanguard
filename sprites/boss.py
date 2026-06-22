@@ -1,6 +1,8 @@
+import random
+
 import pygame
-from settings import GAME_WIDTH, WINDOW_HEIGHT, ENEMY_BOUNDARY, ENEMY_BULLET_SPEED, BULLET_W
-from sprites.bullet import Bullet
+
+from settings import BULLET_W, GAME_WIDTH, WINDOW_HEIGHT
 
 
 class Boss(pygame.sprite.Sprite):
@@ -16,17 +18,34 @@ class Boss(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(midtop=(GAME_WIDTH // 2, 30))
         self.hp = 20
         self.max_hp = 20
-        self.direction = 1
-        self.speed = 0.8
-        self._anim_timer = 0
-        self._anim_frame = 0
+        self.dx = random.choice([-1, 1]) * random.uniform(0.5, 1.2)
+        self.dy = random.choice([-1, 1]) * random.uniform(0.3, 0.8)
+        self._change_dir_timer = random.randint(1000, 3000)
 
     def update(self, *args):
-        self.rect.x += self.speed * self.direction
-        if self.rect.right >= GAME_WIDTH - ENEMY_BOUNDARY:
-            self.direction = -1
-        elif self.rect.left <= ENEMY_BOUNDARY:
-            self.direction = 1
+        dt = args[0] if args else 16
+        self._change_dir_timer -= dt
+        if self._change_dir_timer <= 0:
+            self.dx = random.choice([-1, 1]) * random.uniform(0.5, 1.2)
+            self.dy = random.choice([-1, 1]) * random.uniform(0.3, 0.8)
+            self._change_dir_timer = random.randint(1000, 3000)
+
+        self.rect.x += self.dx * (dt / 16)
+        self.rect.y += self.dy * (dt / 16)
+
+        if self.rect.left < 0:
+            self.rect.left = 0
+            self.dx = abs(self.dx)
+        elif self.rect.right > GAME_WIDTH:
+            self.rect.right = GAME_WIDTH
+            self.dx = -abs(self.dx)
+
+        if self.rect.top < 20:
+            self.rect.top = 20
+            self.dy = abs(self.dy)
+        elif self.rect.bottom > WINDOW_HEIGHT - 180:
+            self.rect.bottom = WINDOW_HEIGHT - 180
+            self.dy = -abs(self.dy)
 
     def try_shoot(self):
         return (self.rect.centerx - BULLET_W // 2, self.rect.bottom)

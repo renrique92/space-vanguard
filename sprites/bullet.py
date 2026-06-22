@@ -1,3 +1,4 @@
+import math
 import pygame
 from settings import (
     BULLET_W, PLAYER_BULLET_H, ENEMY_BULLET_H,
@@ -6,7 +7,8 @@ from settings import (
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, speed, is_player=True, vx=0):
+    def __init__(self, x, y, speed, is_player=True, vx=0,
+                 wiggle_amp=0, wiggle_freq=0):
         super().__init__()
         self.is_player = is_player
         w = BULLET_W
@@ -18,9 +20,17 @@ class Bullet(pygame.sprite.Sprite):
         self.speed = speed
         self.vx = vx
         self.has_hit = False
+        self._wiggle_amp = wiggle_amp
+        self._wiggle_freq = wiggle_freq
+        self._wiggle_time = 0
+        self._base_x = x
 
     def update(self, *args):
         self.rect.y += self.speed
-        self.rect.x += self.vx
+        if self._wiggle_amp:
+            self._wiggle_time += 1
+            self.rect.x = self._base_x + math.sin(self._wiggle_time * self._wiggle_freq) * self._wiggle_amp
+        else:
+            self.rect.x += self.vx
         if self.rect.bottom < 0 or self.rect.top > WINDOW_HEIGHT:
             self.kill()
