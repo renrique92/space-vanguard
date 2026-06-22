@@ -1,8 +1,10 @@
 import pygame
 
+from classes import GameState, PowerUpType
 from settings import (
-    BLACK, DIVIDER, GAME_WIDTH, GameState,
+    BLACK, DIVIDER, GAME_WIDTH,
     TEXT_ACCENT, TEXT_MAIN, WINDOW_HEIGHT, WINDOW_WIDTH,
+    POWERUP_COLORS, POWERUP_SYMBOLS,
 )
 
 
@@ -17,8 +19,9 @@ class Renderer:
 
     def draw(self, state, level, transition_timer, player, formation,
              player_bullets, enemy_bullets, particles, flash_fx,
-             ufo, bunkers, score, high_score, lives,
-             score_multiplier, accuracy):
+             ufo, bunkers, powerups, score, high_score, lives,
+             score_multiplier, accuracy,
+             powerup_msg="", active_pu_type=None, active_pu_remaining=0):
         self.game_surf.fill(BLACK)
 
         for sx, sy, sb in self.stars:
@@ -32,17 +35,44 @@ class Renderer:
         player_bullets.draw(self.game_surf)
         if state != GameState.INTRO:
             formation.enemies.draw(self.game_surf)
+        powerups.draw(self.game_surf)
         particles.draw(self.game_surf)
         flash_fx.draw(self.game_surf)
         self.game_surf.blit(player.image, player.rect)
 
         self._draw_level_indicator(level)
+        self._draw_powerup_popup(powerup_msg)
+        self._draw_powerup_indicator(active_pu_type, active_pu_remaining)
 
         if transition_timer > 0:
             self._draw_level_transition(state, level)
 
         self._present(state, score, high_score, lives,
                       score_multiplier, accuracy)
+
+    def _draw_powerup_popup(self, msg):
+        if not msg:
+            return
+        font = pygame.font.Font(None, 52)
+        text = font.render(f"POWER-UP: {msg}", True, TEXT_ACCENT)
+        r = text.get_rect(center=(GAME_WIDTH // 2, WINDOW_HEIGHT // 2 - 60))
+        self.game_surf.blit(text, r)
+
+    def _draw_powerup_indicator(self, pu_type, remaining_ms):
+        if pu_type is None or remaining_ms <= 0:
+            return
+        sec = max(1, int(remaining_ms / 1000))
+        color = POWERUP_COLORS[pu_type]
+        sym = POWERUP_SYMBOLS[pu_type]
+        font = pygame.font.Font(None, 22)
+        badge = font.render(f"[{sym}] {sec}s", True, color)
+        bg = pygame.Surface((badge.get_width() + 12, badge.get_height() + 6))
+        bg.set_alpha(120)
+        bg.fill((0, 0, 0))
+        x = GAME_WIDTH - badge.get_width() - 20
+        y = 8
+        self.game_surf.blit(bg, (x - 8, y - 4))
+        self.game_surf.blit(badge, (x, y))
 
     def _draw_level_indicator(self, level):
         text = self.font_level.render(f"Level {level}", True, TEXT_ACCENT)

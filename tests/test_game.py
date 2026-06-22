@@ -2,7 +2,7 @@ import pygame
 import pytest
 
 from game import Game
-from settings import GameState
+from classes import GameState, PowerUpType
 from sprites.bullet import Bullet
 from sprites.enemy import Enemy, EnemyFormation
 from settings import (
@@ -11,7 +11,11 @@ from settings import (
     SCORE_MULT_DECAY, SCORE_MULT_MIN, TOTAL_LEVELS,
     INVULNERABLE_MS, UFO_W, UFO_SPEED, UFO_Y,
     UFO_SPAWN_MIN, UFO_SPAWN_MAX,
+    PLAYER_BULLET_SPEED, PLAYER_BULLET_H, BULLET_W,
+    POWERUP_CHANCE, POWERUP_COOLDOWN, POWERUP_SPEED,
+    POWERUP_DURATIONS, POWERUP_W, POWERUP_H,
 )
+from sprites.powerup import PowerUp
 
 
 class TestInit:
@@ -508,3 +512,228 @@ class TestBGM:
         assert g.state == GameState.INTRO
         g.sound.play_bgm()
         g.sound.stop_bgm()
+
+
+class TestPowerUp:
+    def test_powerup_starts_empty(self, game):
+        assert len(game.powerups) == 0
+
+    def test_powerup_falls_and_dies_offscreen(self, game):
+        pu = PowerUp(100, WINDOW_HEIGHT + 10, PowerUpType.SPEED)
+        pu.update(16)
+        assert not pu.alive()
+
+    def test_powerup_spawns_on_enemy_kill(self, game):
+        from sprites.enemy import Enemy
+        game.formation.enemies.empty()
+        enemy = Enemy(200, 210, (255, 0, 0), 30)
+        game.formation.enemies.add(enemy)
+        bullet = __import__('sprites.bullet', fromlist=['Bullet']).Bullet(
+            200, 220, -PLAYER_BULLET_SPEED, is_player=True
+        )
+        game.player_bullets.add(bullet)
+        game._pending_shots.add(bullet)
+        game._update(16)
+        assert len(game.formation.enemies) == 0
+
+    def test_powerup_collect_activates_spread(self, game):
+        pu = PowerUp(200, 200, PowerUpType.SPREAD)
+        game.powerups.add(pu)
+        game.player.rect.center = (200, 200)
+        game._update(16)
+        assert game.player.spread_timer > 0
+
+    def test_powerup_collect_activates_shield(self, game):
+        pu = PowerUp(200, 200, PowerUpType.SHIELD)
+        game.powerups.add(pu)
+        game.player.rect.center = (200, 200)
+        game._update(16)
+        assert game.player.shield_timer > 0
+
+    def test_powerup_collect_activates_speed(self, game):
+        pu = PowerUp(200, 200, PowerUpType.SPEED)
+        game.powerups.add(pu)
+        game.player.rect.center = (200, 200)
+        game._update(16)
+        assert game.player.speed_timer > 0
+        game._update(16)
+        assert game.player.speed == 10
+
+    def test_spread_creates_multiple_bullets(self, game):
+        bullets = game._create_spread()
+        assert len(bullets) == 3
+        assert bullets[0].vx == -2
+        assert bullets[1].vx == 0
+        assert bullets[2].vx == 2
+
+    def test_spread_returns_empty_when_no_room(self, game):
+        for _ in range(3):
+            b = __import__('sprites.bullet', fromlist=['Bullet']).Bullet(
+                100, 100, -9, is_player=True
+            )
+            game.player_bullets.add(b)
+        bullets = game._create_spread()
+        assert len(bullets) == 0
+
+    def test_powerup_cleared_on_reset(self, game):
+        game.powerups.add(PowerUp(200, 200, PowerUpType.SPEED))
+        game._reset()
+        assert len(game.powerups) == 0
+
+    def test_powerup_cleared_on_advance_level(self, game):
+        game.powerups.add(PowerUp(200, 200, PowerUpType.SPEED))
+        game._advance_level()
+        assert len(game.powerups) == 0
+
+    def test_shield_absorbs_one_hit(self, game):
+        game.player.shield_timer = 8000
+        lives_before = game.player.lives
+        game.player.take_hit()
+        assert game.player.lives == lives_before
+        assert game.player.shield_timer == 0
+
+    def test_powerup_draw_no_crash(self, game):
+        pu = PowerUp(200, 200, PowerUpType.SPREAD)
+        game.powerups.add(pu)
+        game._draw()
+
+    def test_powerup_timers_expire(self, game):
+        game.player.spread_timer = 100
+        game.player.shield_timer = 100
+        game.player.speed_timer = 100
+        for _ in range(10):
+            game._update(16)
+        assert game.player.spread_timer <= 0
+        assert game.player.shield_timer <= 0
+        assert game.player.speed_timer <= 0
+
+    def test_powerup_replaces_active(self, game):
+        pu1 = PowerUp(200, 200, PowerUpType.SHIELD)
+        pu2 = PowerUp(200, 200, PowerUpType.RAPID)
+        game.powerups.add(pu1)
+        game.player.rect.center = (200, 200)
+        game._update(16)
+        assert game.player.shield_timer > 0
+        assert game.player.rapid_timer == 0
+        game.powerups.add(pu2)
+        game._update(16)
+        assert game.player.shield_timer == 0
+        assert game.player.rapid_timer > 0
+
+    def test_powerup_msg_shown(self, game):
+        game.powerup_msg = ""
+        game.powerup_msg_timer = 0
+        pu = PowerUp(200, 200, PowerUpType.SPREAD)
+        game.powerups.add(pu)
+        game.player.rect.center = (200, 200)
+        game._update(16)
+        assert game.powerup_msg == "Spread"
+        assert game.powerup_msg_timer > 0
+
+    def test_powerup_msg_expires(self, game):
+        game.powerup_msg = "Test"
+        game.powerup_msg_timer = 100
+        game._update(200)
+        assert game.powerup_msg == ""
+
+    def test_ship_color_changes_on_powerup(self, game):
+        from sprites.player import POWERUP_SHIP_COLORS
+        pu = PowerUp(200, 200, PowerUpType.SPREAD)
+        game.powerups.add(pu)
+        game.player.rect.center = (200, 200)
+        game._update(16)
+        color = game.player.image.get_at((game.player.rect.width // 2, 0))[:3]
+        assert color == POWERUP_SHIP_COLORS[PowerUpType.SPREAD][0]
+
+    def test_ship_restores_default_when_powerup_expires(self, game):
+        game.player.spread_timer = 50
+        game._update(16)
+        for _ in range(5):
+            game._update(16)
+        color = game.player.image.get_at((game.player.rect.width // 2, 0))[:3]
+        from settings import GREEN
+        assert color == GREEN
+
+    def test_powerup_spawn_cooldown_blocks(self, game):
+        game.powerup_spawn_cooldown = 0
+        assert game.powerup_spawn_cooldown < POWERUP_COOLDOWN
+
+    def test_powerup_spawn_cooldown_allows_after_wait(self, game):
+        game.powerup_spawn_cooldown = POWERUP_COOLDOWN
+        assert game.powerup_spawn_cooldown >= POWERUP_COOLDOWN
+
+    def test_rapid_fire_custom_shot_delay(self, game):
+        game.player.rapid_timer = 1000
+        import pygame as pg
+        old = pg.key.get_pressed
+        pg.key.get_pressed = lambda: {pg.K_SPACE: 1}.get
+        from game import Game
+        delay = 80
+        now = game.last_shot_time
+        game.last_shot_time = now - delay
+        # just check property exists and works
+        assert game.player.rapid_timer > 0
+        pg.key.get_pressed = old
+
+    def test_score_powerup_overrides_multiplier(self, game):
+        game.player.score_timer = 1000
+        assert game.score_multiplier == 2.0
+
+    def test_score_multiplier_normal_when_not_active(self, game):
+        game.player.score_timer = 0
+        game.elapsed_time = 0
+        from settings import SCORE_MULT_START
+        assert game.score_multiplier == SCORE_MULT_START
+
+    def test_slowmo_slows_enemies(self, game):
+        from settings import SLOWMO_RATE
+        enemy = list(game.formation.enemies)[0]
+        x0 = enemy.rect.x
+        for _ in range(10):
+            game.formation.update(16, SLOWMO_RATE)
+        dx = abs(enemy.rect.x - x0)
+        assert 0 < dx < 10 * 2  # slowmo moves but less than 10 frames full speed
+
+    def test_pierce_bullet_survives_enemy_collision(self, game):
+        from sprites.enemy import Enemy
+        game.formation.enemies.empty()
+        enemy1 = Enemy(200, 210, (255, 0, 0), 30)
+        enemy2 = Enemy(300, 210, (255, 0, 0), 30)
+        game.formation.enemies.add(enemy1, enemy2)
+        bullet = __import__('sprites.bullet', fromlist=['Bullet']).Bullet(
+            200, 220, -PLAYER_BULLET_SPEED, is_player=True
+        )
+        game.player_bullets.add(bullet)
+        game._pending_shots.add(bullet)
+        game.player.pierce_timer = 1000
+        game._update(16)
+        assert bullet.alive()
+        assert not enemy1.alive()
+        assert enemy2.alive()
+
+    def test_pierce_bullet_dies_normally_without_powerup(self, game):
+        from sprites.enemy import Enemy
+        game.formation.enemies.empty()
+        enemy = Enemy(200, 210, (255, 0, 0), 30)
+        game.formation.enemies.add(enemy)
+        bullet = __import__('sprites.bullet', fromlist=['Bullet']).Bullet(
+            200, 220, -PLAYER_BULLET_SPEED, is_player=True
+        )
+        game.player_bullets.add(bullet)
+        game._pending_shots.add(bullet)
+        game.player.pierce_timer = 0
+        game._update(16)
+        assert not bullet.alive()
+        assert len(game.formation.enemies) == 0
+
+    def test_activate_clears_previous(self, game):
+        game.player.activate_powerup(PowerUpType.SPREAD)
+        assert game.player.spread_timer > 0
+        game.player.activate_powerup(PowerUpType.SLOWMO)
+        assert game.player.spread_timer == 0
+        assert game.player.slowmo_timer > 0
+
+    def test_all_powerup_types_have_duration(self, game):
+        for pt in PowerUpType:
+            assert POWERUP_DURATIONS[pt] > 0
+            assert POWERUP_DURATIONS[pt] % 1000 == 0

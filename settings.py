@@ -1,6 +1,6 @@
-from enum import Enum, auto
-
 import pygame
+
+from classes import PowerUpType
 
 WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 700
@@ -143,9 +143,49 @@ SCORE_MULT_DECAY = 10
 SCORE_MULT_MIN = 0.3
 
 
-class GameState(Enum):
-    INTRO = auto()
-    PLAYING = auto()
-    PAUSED = auto()
-    GAME_OVER = auto()
-    WIN = auto()
+POWERUP_COOLDOWN = 20000
+SLOWMO_RATE = 0.3
+
+POWERUP_SPEED = 2
+POWERUP_CHANCE = 0.10
+POWERUP_MSG_DURATION = 2000
+POWERUP_W = 20
+POWERUP_H = 14
+POWERUP_COLORS = {
+    PowerUpType.SPREAD: CYAN,
+    PowerUpType.SHIELD: GREEN,
+    PowerUpType.SPEED: YELLOW,
+    PowerUpType.RAPID: (255, 50, 200),
+    PowerUpType.PIERCE: (255, 150, 200),
+    PowerUpType.SCORE: (255, 215, 0),
+    PowerUpType.SLOWMO: (180, 50, 200),
+}
+POWERUP_SYMBOLS = {
+    PowerUpType.SPREAD: "S",
+    PowerUpType.SHIELD: "I",
+    PowerUpType.SPEED: ">",
+    PowerUpType.RAPID: "R",
+    PowerUpType.PIERCE: "P",
+    PowerUpType.SCORE: "*",
+    PowerUpType.SLOWMO: "Z",
+}
+TP = PowerUpType
+POWERUP_DURATIONS = {
+    TP.SPREAD: 8000,
+    TP.SHIELD: 8000,
+    TP.SPEED: 8000,
+    TP.RAPID: 8000,
+    TP.PIERCE: 8000,
+    TP.SCORE: 10000,
+    TP.SLOWMO: 6000,
+}
+POWERUP_SHIP_COLORS = {
+    TP.SPREAD: (CYAN, (0, 180, 180)),
+    TP.SHIELD: ((100, 255, 100), (50, 180, 50)),
+    TP.SPEED: (YELLOW, ORANGE),
+    TP.RAPID: ((255, 50, 200), (180, 30, 140)),
+    TP.PIERCE: ((255, 150, 200), (200, 80, 140)),
+    TP.SCORE: ((255, 215, 0), (180, 150, 0)),
+    TP.SLOWMO: ((180, 50, 200), (130, 30, 150)),
+}
+

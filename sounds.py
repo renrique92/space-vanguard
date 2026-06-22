@@ -29,6 +29,7 @@ class SoundManager:
         self.sounds["win"] = self._sweep(330, 880, 0.60, 0.15, "sine")
         self.sounds["ufo"] = self._sweep(200, 600, 0.40, 0.08, "square")
         self.sounds["level_up"] = self._sweep(660, 1320, 0.30, 0.12, "square")
+        self.sounds["powerup"] = self._sweep(440, 880, 0.15, 0.10, "sine")
         self.sounds["bgm"] = self._generate_bgm()
 
     def play(self, name):

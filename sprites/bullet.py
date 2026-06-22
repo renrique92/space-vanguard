@@ -6,7 +6,7 @@ from settings import (
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, speed, is_player=True):
+    def __init__(self, x, y, speed, is_player=True, vx=0):
         super().__init__()
         self.is_player = is_player
         w = BULLET_W
@@ -16,9 +16,11 @@ class Bullet(pygame.sprite.Sprite):
         self.image.fill(color)
         self.rect = self.image.get_rect(topleft=(x, y))
         self.speed = speed
+        self.vx = vx
         self.has_hit = False
 
     def update(self, *args):
         self.rect.y += self.speed
+        self.rect.x += self.vx
         if self.rect.bottom < 0 or self.rect.top > WINDOW_HEIGHT:
             self.kill()

@@ -4,12 +4,14 @@ import random
 
 import pygame
 
+from classes import GameState, PowerUpType
 from settings import (
     BULLET_W, BUNKER_COUNT, ENEMY_AUTO_STEP_INTERVAL,
-    ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, GameState, LEVELS,
+    ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, LEVELS,
     MAX_LIVES, MAX_PLAYER_BULLETS, PLAYER_BULLET_H,
-    PLAYER_BULLET_SPEED, SCORE_MULT_START, SCORE_MULT_DECAY,
-    SCORE_MULT_MIN, SHOT_DELAY, TOTAL_LEVELS,
+    PLAYER_BULLET_SPEED, POWERUP_CHANCE, POWERUP_COOLDOWN,
+    SCORE_MULT_START, SCORE_MULT_DECAY,
+    SCORE_MULT_MIN, SHOT_DELAY, SLOWMO_RATE, TOTAL_LEVELS,
     UFO_SPAWN_MIN, UFO_SPAWN_MAX, WINDOW_HEIGHT, WINDOW_WIDTH,
 )
 from sounds import SoundManager
@@ -18,6 +20,7 @@ from sprites.bullet import Bullet
 from sprites.bunker import Bunker
 from sprites.enemy import EnemyFormation
 from sprites.player import Player
+from sprites.powerup import PowerUp
 from sprites.ufo import UFO
 from ui.info_panel import InfoPanel
 from renderer import Renderer
@@ -65,6 +68,11 @@ class Game:
         self.shots_hit = 0
         self._pending_shots = set()
 
+        self.powerups = pygame.sprite.Group()
+        self.powerup_msg = ""
+        self.powerup_msg_timer = 0
+        self.powerup_spawn_cooldown = POWERUP_COOLDOWN
+
         self.ufo = None
         self.ufo_spawn_timer = 0
         self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
@@ -108,24 +116,30 @@ class Game:
             keys = pygame.key.get_pressed()
             self.player.handle_input(keys)
             now = pygame.time.get_ticks()
+            shot_delay = 80 if self.player.rapid_timer > 0 else SHOT_DELAY
             if (
                 keys[pygame.K_SPACE]
                 and len(self.player_bullets) < MAX_PLAYER_BULLETS
-                and now - self.last_shot_time >= SHOT_DELAY
+                and now - self.last_shot_time >= shot_delay
             ):
-                self.last_shot_time = now
-                x = self.player.rect.centerx - BULLET_W // 2
-                y = self.player.rect.top - PLAYER_BULLET_H
-                bullet = Bullet(x, y, -PLAYER_BULLET_SPEED, is_player=True)
-                self.player_bullets.add(bullet)
-                self._pending_shots.add(bullet)
-                self.sound.play("shoot")
-                self.flash_fx.add(
-                    MuzzleFlash(self.player.rect.centerx, self.player.rect.top)
-                )
+                if self.player.spread_timer > 0:
+                    bullets = self._create_spread()
+                else:
+                    bullets = self._create_bullet()
+                if bullets:
+                    self.last_shot_time = now
+                    for b in bullets:
+                        self.player_bullets.add(b)
+                        self._pending_shots.add(b)
+                    self.sound.play("shoot")
+                    self.flash_fx.add(
+                        MuzzleFlash(self.player.rect.centerx, self.player.rect.top)
+                    )
 
     @property
     def score_multiplier(self):
+        if self.player.score_timer > 0:
+            return 2.0
         sec = self.elapsed_time / 1000
         return max(SCORE_MULT_MIN, SCORE_MULT_START - sec / SCORE_MULT_DECAY)
 
@@ -152,14 +166,22 @@ class Game:
 
         self.screen_shake.update(dt)
         self.player.update(dt)
-        self.formation.update(dt)
 
-        self.auto_step_timer += dt
+        speed_mult = SLOWMO_RATE if self.player.slowmo_timer > 0 else 1.0
+        self.formation.update(dt, speed_mult)
+        self.auto_step_timer += int(dt * speed_mult)
+
         if self.auto_step_timer >= ENEMY_AUTO_STEP_INTERVAL:
             self.formation.auto_step_down()
             self.auto_step_timer = 0
 
-        result = self.formation.try_shoot()
+        if self.player.slowmo_timer > 0:
+            if random.random() >= SLOWMO_RATE:
+                result = None
+            else:
+                result = self.formation.try_shoot()
+        else:
+            result = self.formation.try_shoot()
         if result:
             x, y = result
             self.enemy_bullets.add(
@@ -172,6 +194,7 @@ class Game:
         self.particles.update(dt)
         self.flash_fx.update(dt)
 
+        self.powerup_spawn_cooldown += dt
         self._update_ufo(dt)
 
         for bunker in self.bunkers:
@@ -182,8 +205,9 @@ class Game:
                 self.enemy_bullets, bunker.bricks, True, True
             )
 
+        dokill_player = self.player.pierce_timer <= 0
         hits = pygame.sprite.groupcollide(
-            self.player_bullets, self.formation.enemies, True, True
+            self.player_bullets, self.formation.enemies, dokill_player, True
         )
         mult = self.score_multiplier
         for bullet, enemies in hits.items():
@@ -198,6 +222,29 @@ class Game:
                     )
                 )
                 self.sound.play("explosion")
+                if (self.powerup_spawn_cooldown >= POWERUP_COOLDOWN
+                        and random.random() < POWERUP_CHANCE):
+                    ptype = random.choice(list(PowerUpType))
+                    self.powerups.add(
+                        PowerUp(enemy.rect.centerx, enemy.rect.centery, ptype)
+                    )
+                    self.powerup_spawn_cooldown = 0
+
+        collected = pygame.sprite.spritecollide(
+            self.player, self.powerups, True
+        )
+        for pu in collected:
+            self.player.activate_powerup(pu.power_type)
+            self.sound.play("powerup")
+            self.powerup_msg = pu.power_type.name.title()
+            self.powerup_msg_timer = 2000
+
+        if self.powerup_msg_timer > 0:
+            self.powerup_msg_timer -= dt
+            if self.powerup_msg_timer <= 0:
+                self.powerup_msg = ""
+
+        self.powerups.update(dt)
 
         self._resolve_shots()
 
@@ -234,6 +281,26 @@ class Game:
                 self.sound.stop_bgm()
                 self._save_high_score()
                 self.sound.play("win")
+
+    def _create_bullet(self):
+        if len(self.player_bullets) >= MAX_PLAYER_BULLETS:
+            return []
+        x = self.player.rect.centerx - BULLET_W // 2
+        y = self.player.rect.top - PLAYER_BULLET_H
+        return [Bullet(x, y, -PLAYER_BULLET_SPEED, is_player=True)]
+
+    def _create_spread(self):
+        if len(self.player_bullets) + 3 > MAX_PLAYER_BULLETS:
+            return []
+        cx = self.player.rect.centerx
+        y = self.player.rect.top - PLAYER_BULLET_H
+        bullets = []
+        for ox, ovx in [(-8, -2), (0, 0), (8, 2)]:
+            x = cx - BULLET_W // 2 + ox
+            bullets.append(
+                Bullet(x, y, -PLAYER_BULLET_SPEED, is_player=True, vx=ovx)
+            )
+        return bullets
 
     def _update_ufo(self, dt):
         if self.ufo is None:
@@ -276,14 +343,26 @@ class Game:
                     self.ufo_spawn_timer = 0
 
     def _draw(self):
+        active_pu_type = None
+        active_pu_remaining = 0
+        for pt in PowerUpType:
+            timer = getattr(self.player, f"{pt.name.lower()}_timer", 0)
+            if timer > 0:
+                active_pu_type = pt
+                active_pu_remaining = timer
+                break
+
         self.renderer.draw(
             self.state, self.level, self.transition_timer,
             self.player, self.formation,
             self.player_bullets, self.enemy_bullets,
             self.particles, self.flash_fx,
-            self.ufo, self.bunkers,
+            self.ufo, self.bunkers, self.powerups,
             self.score, self.high_score, self.player.lives,
             self.score_multiplier, self.accuracy,
+            powerup_msg=self.powerup_msg,
+            active_pu_type=active_pu_type,
+            active_pu_remaining=active_pu_remaining,
         )
 
     @staticmethod
@@ -321,6 +400,8 @@ class Game:
         self.enemy_bullets.empty()
         self.particles.empty()
         self.flash_fx.empty()
+        self.powerups.empty()
+        self.powerup_spawn_cooldown = POWERUP_COOLDOWN
         self.ufo = None
         self.ufo_spawn_timer = 0
         self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
@@ -342,6 +423,8 @@ class Game:
         self.ufo_spawn_timer = 0
         self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
         self.bunkers = self._create_bunkers()
+        self.powerups.empty()
+        self.powerup_spawn_cooldown = POWERUP_COOLDOWN
         self.formation = EnemyFormation(LEVELS[self.level - 1])
         self.player.reset(reset_lives=False)
         self.auto_step_timer = 0

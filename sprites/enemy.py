@@ -44,6 +44,7 @@ class EnemyFormation:
         self.config = config
         self.enemies = pygame.sprite.Group()
         self.initial_count = sum(sum(row) for row in config["pattern"])
+        self._frac_x = 0.0
         self._create()
 
     def _create(self):
@@ -64,6 +65,7 @@ class EnemyFormation:
             return
 
         dt = args[0] if args else 16
+        speed_mult = args[1] if len(args) > 1 else 1.0
         self.enemies.update(dt)
 
         for enemy in self.enemies:
@@ -78,8 +80,12 @@ class EnemyFormation:
         mult = 1 + 0.7 * (1 - remaining / self.initial_count) if remaining > 0 else 1
         self.speed = ENEMY_BASE_SPEED * mult
 
-        for enemy in self.enemies:
-            enemy.rect.x += self.speed * self.direction
+        self._frac_x += self.speed * self.direction * speed_mult
+        if abs(self._frac_x) >= 1:
+            step = int(self._frac_x)
+            for enemy in self.enemies:
+                enemy.rect.x += step
+            self._frac_x -= step
 
     def _reverse_and_step(self):
         self.direction *= -1
@@ -109,6 +115,7 @@ class EnemyFormation:
         self.enemies.empty()
         self.direction = 1
         self.speed = ENEMY_BASE_SPEED
+        self._frac_x = 0.0
         if config is not None:
             self.config = config
             self.initial_count = sum(sum(row) for row in config["pattern"])

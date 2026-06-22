@@ -10,7 +10,7 @@ import pygame
 
 import game as game_module
 from game import Game
-from settings import GameState
+from classes import GameState
 
 
 @pytest.fixture(scope="session", autouse=True)
