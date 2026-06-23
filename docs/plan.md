@@ -50,9 +50,11 @@
 - [x] Fix: bunkers centrados en game area
 - [x] Fix: pygame.display.flip() en TITLE state
 
-### Fase 9 — Refinamiento (en progreso)
+### ✅ Fase 9 — Refinamiento (completada)
 - [x] Extraer enemy shooting logic a función separada (`shooting.py`)
-- [ ] Tests de renderizado, performance, edge cases
+- [x] Tests de edge cases — 23 tests nuevos
+- [x] Tests de renderizado — 8 tests: cada estado sin crash + boss/powerups/popups
+- [x] Tests de performance — 3 tests: 100 frames <2s, stress bullets, stress particles
 
 ---
 

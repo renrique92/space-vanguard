@@ -3,8 +3,9 @@ import pytest
 
 from game import Game
 from levels import advance_level, reset_game
-from classes import GameState, PowerUpType
+from classes import Difficulty, GameState, PowerUpType
 from sprites.bullet import Bullet
+from sprites.boss import Boss
 from sprites.enemy import Enemy, EnemyFormation
 from settings import (
     BUNKER_COUNT, ENEMY_ANIM_INTERVAL, GAME_WIDTH,
@@ -15,6 +16,8 @@ from settings import (
     PLAYER_BULLET_SPEED, PLAYER_BULLET_H, BULLET_W,
     POWERUP_CHANCE, POWERUP_COOLDOWN, POWERUP_SPEED,
     POWERUP_DURATIONS, POWERUP_W, POWERUP_H,
+    GAME_OVER_LINE, MAX_PLAYER_BULLETS, DIFFICULTY_PRESETS,
+    ENEMY_BULLET_SPEED, SLOWMO_RATE,
 )
 from sprites.powerup import PowerUp
 
@@ -747,3 +750,240 @@ class TestPowerUp:
         for pt in PowerUpType:
             assert POWERUP_DURATIONS[pt] > 0
             assert POWERUP_DURATIONS[pt] % 1000 == 0
+
+
+class TestEdgeCase:
+    def test_title_update_returns_early(self, game):
+        game.state = GameState.TITLE
+        score_before = game.score
+        game._update(16)
+        assert game.state == GameState.TITLE
+        assert game.score == score_before
+
+    def test_empty_formation_try_shoot_returns_none(self, game):
+        game.formation.enemies.empty()
+        assert game.formation.try_shoot() is None
+
+    def test_enemies_reach_game_over_line(self, game):
+        for e in game.formation.enemies:
+            e.rect.bottom = GAME_OVER_LINE + 10
+        game._update(16)
+        assert game.state == GameState.GAME_OVER
+
+    def test_create_bullet_at_max_returns_empty(self, game):
+        for _ in range(MAX_PLAYER_BULLETS):
+            b = Bullet(100, 100, -9, is_player=True)
+            game.player_bullets.add(b)
+        assert game._create_bullet() == []
+
+    def test_score_popup_removed_after_expiry(self, game):
+        game.score_popups.append({
+            "text": "+100", "x": 100, "y": 100, "timer": 50, "start_y": 100,
+        })
+        game._update_score_popups(100)
+        assert len(game.score_popups) == 0
+
+    def test_empty_bunkers_no_crash(self, game):
+        game.bunkers = []
+        game._update(16)
+
+    def test_stars_wrap_around(self, game):
+        s = game.stars[0]
+        s[1] = WINDOW_HEIGHT + 10
+        game._update_stars(16)
+        assert 0 <= s[1] < WINDOW_HEIGHT
+
+    def test_formation_update_empty_no_crash(self, game):
+        game.formation.enemies.empty()
+        game.formation.update(16)
+
+    def test_auto_step_down_empty_no_crash(self, game):
+        game.formation.enemies.empty()
+        game.formation.auto_step_down()
+
+
+class TestDifficulty:
+    def test_default_normal_lives(self, game):
+        assert game.player.lives == PLAYER_LIVES
+
+    def test_easy_reset_lives(self):
+        g = Game()
+        g.difficulty = Difficulty.EASY
+        reset_game(g)
+        assert g.player.lives == DIFFICULTY_PRESETS[Difficulty.EASY]["lives"]
+
+    def test_hard_reset_lives(self):
+        g = Game()
+        g.difficulty = Difficulty.HARD
+        reset_game(g)
+        assert g.player.lives == DIFFICULTY_PRESETS[Difficulty.HARD]["lives"]
+
+    def test_easy_advance_preserves_lives(self, game):
+        game.difficulty = Difficulty.EASY
+        game.player.lives = 2
+        advance_level(game)
+        assert game.player.lives == 2
+
+
+class TestStreak:
+    def test_streak_increments_on_kill(self, game):
+        game.streak = 5
+        game.formation.enemies.empty()
+        bullet = Bullet(200, 200, -9, is_player=True)
+        game.player_bullets.add(bullet)
+        game._pending_shots.add(bullet)
+        enemy = Enemy(200, 200, (255, 0, 0), 30)
+        game.formation.enemies.add(enemy)
+        game._update(16)
+        assert game.streak == 6
+
+    def test_streak_resets_on_hit(self, game):
+        game.streak = 10
+        game.player.invulnerable = False
+        bullet = Bullet(
+            game.player.rect.centerx, game.player.rect.top, 5, is_player=False
+        )
+        game.enemy_bullets.add(bullet)
+        game._update(16)
+        assert game.streak == 0
+
+    def test_streak_persists_on_level_advance(self, game):
+        game.streak = 15
+        advance_level(game)
+        assert game.streak == 15
+
+    def test_streak_resets_on_game_reset(self, game):
+        game.streak = 20
+        reset_game(game)
+        assert game.streak == 0
+
+    def test_streak_bonus_added_to_score(self, game):
+        game.streak = 50
+        game.elapsed_time = 0
+        game.formation.enemies.empty()
+        bullet = Bullet(200, 200, -9, is_player=True)
+        game.player_bullets.add(bullet)
+        game._pending_shots.add(bullet)
+        enemy = Enemy(200, 200, (255, 0, 0), 30)
+        game.formation.enemies.add(enemy)
+        score_before = game.score
+        game._update(16)
+        delta = game.score - score_before
+        assert delta >= 50
+
+    def test_streak_bonus_caps_at_99(self, game):
+        game.streak = 200
+        game.elapsed_time = 0
+        game.formation.enemies.empty()
+        bullet = Bullet(200, 200, -9, is_player=True)
+        game.player_bullets.add(bullet)
+        game._pending_shots.add(bullet)
+        enemy = Enemy(200, 200, (255, 0, 0), 30)
+        game.formation.enemies.add(enemy)
+        score_before = game.score
+        game._update(16)
+        delta = game.score - score_before
+        assert delta >= 99
+        assert delta < 200
+
+
+class TestBoss:
+    def test_try_shoot_returns_position(self, game):
+        boss = Boss()
+        pos = boss.try_shoot()
+        assert len(pos) == 2
+        assert isinstance(pos[0], (int, float))
+        assert isinstance(pos[1], (int, float))
+
+    def test_take_hit_reduces_hp(self, game):
+        boss = Boss()
+        hp_before = boss.hp
+        boss.take_hit()
+        assert boss.hp == hp_before - 1
+
+    def test_boss_killed_when_hp_zero(self, game):
+        boss = Boss()
+        for _ in range(boss.max_hp):
+            boss.take_hit()
+        assert not boss.alive()
+
+    def test_boss_shoots_after_timer(self, game):
+        game.boss = Boss()
+        game.boss_shoot_timer = 800
+        n_before = len(game.enemy_bullets)
+        game._update(16)
+        assert len(game.enemy_bullets) == n_before + 1
+        assert game.boss_shoot_timer == 0
+
+
+class TestRender:
+    def test_draw_playing_no_crash(self, game):
+        game._draw()
+
+    def test_draw_intro_no_crash(self, game):
+        game.state = GameState.INTRO
+        game.transition_timer = 2000
+        game._draw()
+
+    def test_draw_paused_no_crash(self, game):
+        game._prev_state = game.state
+        game.state = GameState.PAUSED
+        game._draw()
+
+    def test_draw_game_over_no_crash(self, game):
+        game.state = GameState.GAME_OVER
+        game._draw()
+
+    def test_draw_win_no_crash(self, game):
+        game.state = GameState.WIN
+        game._draw()
+
+    def test_draw_title_no_crash(self):
+        g = Game()
+        assert g.state == GameState.TITLE
+        g._draw()
+
+    def test_draw_transition_with_boss_powerups(self, game):
+        game.state = GameState.INTRO
+        game.transition_timer = 2000
+        game.boss = Boss()
+        from sprites.powerup import PowerUp
+        game.powerups.add(PowerUp(200, 200, PowerUpType.SPREAD))
+        game.player.activate_powerup(PowerUpType.SHIELD)
+        game._draw()
+
+    def test_draw_score_popups(self, game):
+        game.score_popups.append({
+            "text": "+100", "x": 100, "y": 100, "timer": 500, "start_y": 100,
+        })
+        game._draw()
+
+
+class TestPerformance:
+    def test_100_frames_under_2s(self, game):
+        import time
+        start = time.perf_counter()
+        for _ in range(100):
+            game._update(16)
+            game._draw()
+        elapsed = time.perf_counter() - start
+        assert elapsed < 2.0
+
+    def test_stress_many_bullets(self, game):
+        for _ in range(50):
+            b = Bullet(100, 100, 5, is_player=False)
+            game.enemy_bullets.add(b)
+            b = Bullet(100, 300, -9, is_player=True)
+            game.player_bullets.add(b)
+        for _ in range(200):
+            game._update(16)
+        assert len(game.player_bullets) == 0
+        assert len(game.enemy_bullets) < 20
+
+    def test_stress_many_particles(self, game):
+        from effects import spawn_explosion
+        for _ in range(20):
+            game.particles.add(spawn_explosion(100, 100, (255, 0, 0)))
+        for _ in range(60):
+            game._update(16)
+        assert len(game.particles) == 0
