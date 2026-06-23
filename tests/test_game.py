@@ -7,10 +7,11 @@ from classes import Difficulty, GameState, PowerUpType
 from sprites.bullet import Bullet
 from sprites.boss import Boss
 from sprites.enemy import Enemy, EnemyFormation
+from level_generator import generate_level
 from settings import (
     BUNKER_COUNT, ENEMY_ANIM_INTERVAL, GAME_WIDTH,
-    WINDOW_HEIGHT, PLAYER_LIVES, LEVELS, SCORE_MULT_START,
-    SCORE_MULT_DECAY, SCORE_MULT_MIN, TOTAL_LEVELS,
+    WINDOW_HEIGHT, PLAYER_LIVES, SCORE_MULT_START,
+    SCORE_MULT_DECAY, SCORE_MULT_MIN, BOSS_INTERVAL,
     INVULNERABLE_MS, UFO_W, UFO_SPEED, UFO_Y,
     UFO_SPAWN_MIN, UFO_SPAWN_MAX,
     PLAYER_BULLET_SPEED, PLAYER_BULLET_H, BULLET_W,
@@ -93,8 +94,7 @@ class TestLevelTransition:
 
 class TestEnemyFormation:
     def test_initial_enemy_count(self, game):
-        expected = sum(sum(row) for row in LEVELS[0]["pattern"])
-        assert len(game.formation.enemies) == expected
+        assert len(game.formation.enemies) > 0
 
     def test_enemy_update_moves_enemies(self, game):
         pos_before = [e.rect.x for e in game.formation.enemies]
@@ -120,11 +120,19 @@ class TestEnemyFormation:
     def test_reached_game_over_returns_bool(self, game):
         assert game.formation.reached_game_over() is False
 
-    def test_all_formation_configs_load(self):
-        for idx, config in enumerate(LEVELS):
-            f = EnemyFormation(config)
-            expected = sum(sum(row) for row in config["pattern"])
-            assert len(f.enemies) == expected, f"Level {idx + 1}: expected {expected}, got {len(f.enemies)}"
+    def test_generated_levels_load(self):
+        for n in [1, 2, 3, 5, 6, 10, 11]:
+            cfg = generate_level(n)
+            f = EnemyFormation(cfg)
+            expected = sum(sum(row) for row in cfg["pattern"])
+            assert len(f.enemies) == expected, f"Level {n}: expected {expected}, got {len(f.enemies)}"
+            assert len(cfg["colors"]) == len(cfg["pattern"])
+            assert len(cfg["points"]) == len(cfg["pattern"])
+
+    def test_boss_level_has_smaller_formation(self):
+        cfg = generate_level(5)
+        rows = len(cfg["pattern"])
+        assert rows <= 3
 
     def test_animation_frames_alternate(self, game):
         before = [e.image for e in game.formation.enemies]
@@ -277,17 +285,25 @@ class TestStateMachine:
         assert game.score == 0
         assert game.level == 1
 
-    def test_win_after_boss_defeated(self, game):
-        game.level = TOTAL_LEVELS
+    def test_boss_at_interval_spawns_on_clear(self, game):
+        game.level = BOSS_INTERVAL
         game.formation.enemies.empty()
         game._update(16)
         assert game.boss is not None
         assert game.state == GameState.PLAYING
+
+    def test_boss_defeated_transitions(self, game):
+        game.level = BOSS_INTERVAL
+        game.formation.enemies.empty()
+        game._update(16)
+        assert game.boss is not None
         for _ in range(game.boss.max_hp):
             game.boss.take_hit()
         assert game.boss.hp <= 0
         game._update(16)
-        assert game.state == GameState.WIN
+        assert game.transition_timer > 0
+        assert game.state == GameState.PLAYING
+        assert game.boss is None
 
     def test_level_up_on_clear(self, game):
         game.level = 1

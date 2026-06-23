@@ -17,15 +17,16 @@ from collision import (
     handle_ufo_collision,
 )
 from shooting import handle_enemy_shooting
+from level_generator import generate_level
 from levels import (
     advance_level, create_bunkers, handle_transition_end, reset_game,
 )
 from settings import (
-    BULLET_W, ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, LEVELS,
+    BULLET_W, ENEMY_BULLET_SPEED, FPS, GAME_WIDTH,
     MAX_LIVES, MAX_PLAYER_BULLETS, PLAYER_BULLET_H,
     PLAYER_BULLET_SPEED, POWERUP_COOLDOWN,
     SCORE_MULT_START, SCORE_MULT_DECAY,
-    SCORE_MULT_MIN, SHOT_DELAY, SLOWMO_RATE, TOTAL_LEVELS,
+    SCORE_MULT_MIN, SHOT_DELAY, SLOWMO_RATE,
     SPECIAL_ACTIVATE_KEY,
     UFO_SPAWN_MIN, UFO_SPAWN_MAX, WINDOW_HEIGHT, WINDOW_WIDTH,
 )
@@ -78,7 +79,7 @@ class Game:
         self.player = Player()
         self.player.lives = DIFFICULTY_PRESETS[self.difficulty]["lives"]
         diff = DIFFICULTY_PRESETS[self.difficulty]
-        self.formation = EnemyFormation(LEVELS[0], diff)
+        self.formation = EnemyFormation(generate_level(1), diff)
         self.player_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
         self.particles = pygame.sprite.Group()

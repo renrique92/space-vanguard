@@ -1,7 +1,7 @@
 import pygame
 
 from classes import Difficulty, GameState, PowerUpType
-from settings import DIFFICULTY_NAMES
+from settings import BOSS_INTERVAL, DIFFICULTY_NAMES
 from settings import (
     BLACK, DIVIDER, GAME_WIDTH,
     TEXT_ACCENT, TEXT_MAIN, WINDOW_HEIGHT, WINDOW_WIDTH,
@@ -105,7 +105,10 @@ class Renderer:
         self.game_surf.blit(badge, (x, y))
 
     def _draw_level_indicator(self, level):
-        text = self.font_level.render(f"Level {level}", True, TEXT_ACCENT)
+        is_boss = level % BOSS_INTERVAL == 0
+        label = f"LEVEL {level}" if not is_boss else f"BOSS LEVEL {level}"
+        color = (255, 100, 50) if is_boss else TEXT_ACCENT
+        text = self.font_level.render(label, True, color)
         bg = pygame.Surface((text.get_width() + 12, text.get_height() + 6))
         bg.set_alpha(100)
         bg.fill((0, 0, 0))
@@ -174,13 +177,19 @@ class Renderer:
         self.game_surf.blit(core, (cx - bw // 2, 0))
 
     def _draw_level_transition(self, state, level):
+        is_boss_clear = level > 0 and level % BOSS_INTERVAL == 0
+
         ft = pygame.font.Font(None, 56)
         fs = pygame.font.Font(None, 28)
         if state == GameState.INTRO:
             t1 = ft.render(f"LEVEL {level}", True, TEXT_ACCENT)
+            t2 = fs.render("Get ready...", True, TEXT_MAIN)
+        elif is_boss_clear:
+            t1 = ft.render(f"BOSS DEFEATED", True, (255, 100, 50))
+            t2 = fs.render(f"Advancing to level {level + 1}", True, TEXT_MAIN)
         else:
             t1 = ft.render(f"LEVEL {level} CLEAR", True, TEXT_ACCENT)
-        t2 = fs.render("Get ready...", True, TEXT_MAIN)
+            t2 = fs.render("Get ready...", True, TEXT_MAIN)
         r1 = t1.get_rect(center=(GAME_WIDTH // 2, WINDOW_HEIGHT // 2 - 20))
         r2 = t2.get_rect(center=(GAME_WIDTH // 2, WINDOW_HEIGHT // 2 + 30))
         self.game_surf.blit(t1, r1)
@@ -240,9 +249,7 @@ class Renderer:
         if state == GameState.PAUSED:
             self._draw_overlay("PAUSED", "Press P to resume")
         elif state == GameState.GAME_OVER:
-            self._draw_overlay("GAME OVER", "Press R to restart")
-        elif state == GameState.WIN:
-            self._draw_overlay("YOU WIN!", "Press R to restart", score)
+            self._draw_overlay("GAME OVER", "Press R to restart", score)
 
         pygame.display.flip()
 

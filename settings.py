@@ -49,70 +49,9 @@ ENEMY_AUTO_STEP = 3
 ENEMY_ANIM_INTERVAL = 500
 ENEMY_BOUNDARY = 10
 
-ROW_COLORS = [RED, ORANGE, YELLOW, LIME, CYAN]
-ROW_POINTS = [30, 25, 20, 15, 10]
-
-TOTAL_LEVELS = 5
 MAX_LIVES = 5
 
-LEVELS = [
-    {
-        "pattern": [
-            [1,1,1,1,1,1,1,1],
-            [1,1,1,1,1,1,1,1],
-            [1,1,1,1,1,1,1,1],
-            [1,1,1,1,1,1,1,1],
-            [1,1,1,1,1,1,1,1],
-        ],
-        "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
-        "points": [30, 25, 20, 15, 10],
-        "difficulty": {"speed": 1.0, "shoot": 1.0, "auto_step_ms": 4000},
-    },
-    {
-        "pattern": [
-            [0,0,0,1,1,0,0,0],
-            [0,0,1,1,1,1,0,0],
-            [0,1,1,1,1,1,1,0],
-            [0,0,1,1,1,1,0,0],
-            [0,0,0,1,1,0,0,0],
-        ],
-        "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
-        "points": [30, 25, 20, 15, 10],
-        "difficulty": {"speed": 1.1, "shoot": 1.2, "auto_step_ms": 3800},
-    },
-    {
-        "pattern": [
-            [0,0,1,1,1,1,0,0],
-            [0,1,1,1,1,1,1,0],
-            [1,1,1,1,1,1,1,1],
-            [0,1,1,0,0,1,1,0],
-            [0,0,1,0,0,1,0,0],
-        ],
-        "colors": [RED, ORANGE, YELLOW, LIME, CYAN],
-        "points": [30, 25, 20, 15, 10],
-        "difficulty": {"speed": 1.2, "shoot": 1.4, "auto_step_ms": 3500},
-    },
-    {
-        "pattern": [
-            [1,0,1,0,1,0,1,0,1,0],
-            [1,0,1,0,1,0,1,0,1,0],
-            [1,0,1,0,1,0,1,0,1,0],
-            [1,0,1,0,1,0,1,0,1,0],
-        ],
-        "colors": [RED, ORANGE, YELLOW, LIME],
-        "points": [30, 25, 20, 15],
-        "difficulty": {"speed": 1.35, "shoot": 1.7, "auto_step_ms": 3000},
-    },
-    {
-        "pattern": [
-            [1,1,1,1,1,1,1,1,1,1],
-            [1,1,1,1,1,1,1,1,1,1],
-        ],
-        "colors": [RED, ORANGE],
-        "points": [35, 30],
-        "difficulty": {"speed": 1.5, "shoot": 2.0, "auto_step_ms": 2500},
-    },
-]
+BOSS_INTERVAL = 5
 
 BULLET_W = 4
 PLAYER_BULLET_H = 14

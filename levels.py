@@ -1,9 +1,10 @@
 import random
 
 from classes import GameState
+from level_generator import generate_level
 from settings import (
     BUNKER_BRICK_GAP, BUNKER_BRICK_W, BUNKER_COLS,
-    BUNKER_COUNT, DIFFICULTY_PRESETS, GAME_WIDTH, LEVELS, POWERUP_COOLDOWN,
+    BUNKER_COUNT, DIFFICULTY_PRESETS, GAME_WIDTH, POWERUP_COOLDOWN,
     UFO_SPAWN_MAX, UFO_SPAWN_MIN,
 )
 from sprites.bunker import Bunker
@@ -27,7 +28,7 @@ def advance_level(game) -> None:
     game.powerups.empty()
     game.powerup_spawn_cooldown = POWERUP_COOLDOWN
     diff = DIFFICULTY_PRESETS[game.difficulty]
-    game.formation = EnemyFormation(LEVELS[game.level - 1], diff)
+    game.formation = EnemyFormation(generate_level(game.level), diff)
     game.player.reset(reset_lives=False)
     if game.player.special_charge >= 1.0 and not game.player.special_used:
         game.player.special_charge = 1.0
@@ -65,7 +66,7 @@ def reset_game(game) -> None:
     diff = DIFFICULTY_PRESETS[game.difficulty]
     game.player.reset()
     game.player.lives = diff["lives"]
-    game.formation = EnemyFormation(LEVELS[0], diff)
+    game.formation = EnemyFormation(generate_level(1), diff)
 
 
 def handle_transition_end(game) -> None:

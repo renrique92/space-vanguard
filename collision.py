@@ -6,7 +6,7 @@ from classes import GameState, PowerUpType
 from effects import spawn_explosion
 from settings import (
     POWERUP_CHANCE, POWERUP_COOLDOWN, UFO_SPAWN_MAX, UFO_SPAWN_MIN,
-    MAX_LIVES, TOTAL_LEVELS, SPECIAL_BEAM_TICK, SPECIAL_BEAM_WIDTH,
+    BOSS_INTERVAL, MAX_LIVES, SPECIAL_BEAM_TICK, SPECIAL_BEAM_WIDTH,
 )
 from sprites.boss import Boss
 from sprites.powerup import PowerUp
@@ -163,22 +163,26 @@ def handle_game_state_checks(game) -> None:
         return
 
     if len(game.formation.enemies) == 0 and game.boss is None:
-        if game.level < TOTAL_LEVELS:
+        if game.level % BOSS_INTERVAL == 0:
+            game.boss = Boss()
+            game.boss_shoot_timer = 0
+        else:
             game.transition_timer = 2000
             if game.player.lives < MAX_LIVES:
                 game.player.lives += 1
             game.sound.play("level_up")
             game.player_bullets.empty()
             game.enemy_bullets.empty()
-        else:
-            game.boss = Boss()
-            game.boss_shoot_timer = 0
 
     if game.boss and game.boss.hp <= 0:
-        game.state = GameState.WIN
-        game.sound.stop_bgm()
-        game._save_high_score()
-        game.sound.play("win")
+        game.transition_timer = 2000
+        if game.player.lives < MAX_LIVES:
+            game.player.lives += 1
+        game.sound.play("level_up")
+        game.player_bullets.empty()
+        game.enemy_bullets.empty()
+        game.boss = None
+        game.boss_shoot_timer = 0
 
 
 def handle_special_beam(game) -> None:
@@ -236,3 +240,11 @@ def handle_special_beam(game) -> None:
         game.ufo = None
         game.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
         game.ufo_spawn_timer = 0
+
+    if game.boss and game.boss.rect.colliderect(beam_rect):
+        game.boss.take_hit()
+        game.particles.add(
+            spawn_explosion(game.boss.rect.centerx, game.boss.rect.centery, (200, 100, 100), count=4)
+        )
+        game.score += 50
+        game.sound.play("explosion")
