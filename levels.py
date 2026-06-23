@@ -2,7 +2,8 @@ import random
 
 from classes import GameState
 from settings import (
-    BUNKER_COUNT, GAME_WIDTH, LEVELS, POWERUP_COOLDOWN,
+    BUNKER_BRICK_GAP, BUNKER_BRICK_W, BUNKER_COLS,
+    BUNKER_COUNT, DIFFICULTY_PRESETS, GAME_WIDTH, LEVELS, POWERUP_COOLDOWN,
     UFO_SPAWN_MAX, UFO_SPAWN_MIN,
 )
 from sprites.bunker import Bunker
@@ -11,7 +12,8 @@ from sprites.enemy import EnemyFormation
 
 def create_bunkers() -> list:
     spacing = GAME_WIDTH // (BUNKER_COUNT + 1)
-    return [Bunker(spacing * i) for i in range(1, BUNKER_COUNT + 1)]
+    bunker_w = BUNKER_COLS * (BUNKER_BRICK_W + BUNKER_BRICK_GAP) - BUNKER_BRICK_GAP
+    return [Bunker(spacing * i - bunker_w // 2) for i in range(1, BUNKER_COUNT + 1)]
 
 
 def advance_level(game) -> None:
@@ -24,7 +26,8 @@ def advance_level(game) -> None:
     game.bunkers = create_bunkers()
     game.powerups.empty()
     game.powerup_spawn_cooldown = POWERUP_COOLDOWN
-    game.formation = EnemyFormation(LEVELS[game.level - 1])
+    diff = DIFFICULTY_PRESETS[game.difficulty]
+    game.formation = EnemyFormation(LEVELS[game.level - 1], diff)
     game.player.reset(reset_lives=False)
     game.auto_step_timer = 0
 
@@ -56,8 +59,10 @@ def reset_game(game) -> None:
     game.boss = None
     game.boss_shoot_timer = 0
     game.bunkers = create_bunkers()
+    diff = DIFFICULTY_PRESETS[game.difficulty]
     game.player.reset()
-    game.formation = EnemyFormation(LEVELS[0])
+    game.player.lives = diff["lives"]
+    game.formation = EnemyFormation(LEVELS[0], diff)
 
 
 def handle_transition_end(game) -> None:

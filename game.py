@@ -4,7 +4,8 @@ import random
 
 import pygame
 
-from classes import GameState, PowerUpType
+from classes import Difficulty, GameState, PowerUpType
+from settings import DIFFICULTY_ORDER, DIFFICULTY_PRESETS
 from collision import (
     handle_boss_collisions,
     handle_bunker_collisions,
@@ -69,9 +70,12 @@ class Game:
 
         self.level = 1
         self.transition_timer = 2000
+        self.difficulty = Difficulty.NORMAL
 
         self.player = Player()
-        self.formation = EnemyFormation(LEVELS[0])
+        self.player.lives = DIFFICULTY_PRESETS[self.difficulty]["lives"]
+        diff = DIFFICULTY_PRESETS[self.difficulty]
+        self.formation = EnemyFormation(LEVELS[0], diff)
         self.player_bullets = pygame.sprite.Group()
         self.enemy_bullets = pygame.sprite.Group()
         self.particles = pygame.sprite.Group()
@@ -135,6 +139,12 @@ class Game:
                         self.state = GameState.PAUSED
                 elif event.key == pygame.K_r and self.state in (GameState.GAME_OVER, GameState.WIN):
                     reset_game(self)
+                elif event.key == pygame.K_LEFT and self.state == GameState.TITLE:
+                    idx = DIFFICULTY_ORDER.index(self.difficulty)
+                    self.difficulty = DIFFICULTY_ORDER[(idx - 1) % len(DIFFICULTY_ORDER)]
+                elif event.key == pygame.K_RIGHT and self.state == GameState.TITLE:
+                    idx = DIFFICULTY_ORDER.index(self.difficulty)
+                    self.difficulty = DIFFICULTY_ORDER[(idx + 1) % len(DIFFICULTY_ORDER)]
                 elif event.key == pygame.K_SPACE and self.state == GameState.TITLE:
                     self.state = GameState.INTRO
                     self.transition_timer = 2000
@@ -342,6 +352,7 @@ class Game:
             self.ufo, self.bunkers, self.powerups,
             self.score, self.high_score, self.player.lives,
             self.score_multiplier, self.accuracy, self.streak,
+            difficulty=self.difficulty,
             powerup_msg=self.powerup_msg,
             active_pu_type=active_pu_type,
             active_pu_remaining=active_pu_remaining,

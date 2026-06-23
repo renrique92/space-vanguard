@@ -38,14 +38,18 @@ class Enemy(pygame.sprite.Sprite):
 
 
 class EnemyFormation:
-    def __init__(self, config):
+    def __init__(self, config, diff_mult=None):
         self.direction = 1
         self.speed = ENEMY_BASE_SPEED
         self.config = config
         self.enemies = pygame.sprite.Group()
         self.initial_count = sum(sum(row) for row in config["pattern"])
         self._frac_x = 0.0
-        self._diff = config.get("difficulty", {"speed": 1.0, "shoot": 1.0, "auto_step_ms": 4000})
+        self._diff = config.get("difficulty", {"speed": 1.0, "shoot": 1.0, "auto_step_ms": 4000}).copy()
+        if diff_mult:
+            self._diff["speed"] *= diff_mult.get("speed", 1.0)
+            self._diff["shoot"] *= diff_mult.get("shoot", 1.0)
+            self._diff["auto_step_ms"] = int(self._diff["auto_step_ms"] * diff_mult.get("auto_step_ms", 1.0))
         self._create()
 
     def _create(self):

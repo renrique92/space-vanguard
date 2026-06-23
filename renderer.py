@@ -1,6 +1,7 @@
 import pygame
 
-from classes import GameState, PowerUpType
+from classes import Difficulty, GameState, PowerUpType
+from settings import DIFFICULTY_NAMES
 from settings import (
     BLACK, DIVIDER, GAME_WIDTH,
     TEXT_ACCENT, TEXT_MAIN, WINDOW_HEIGHT, WINDOW_WIDTH,
@@ -24,7 +25,7 @@ class Renderer:
              ufo, bunkers, powerups, score, high_score, lives,
              score_multiplier, accuracy, streak=0,
              powerup_msg="", active_pu_type=None, active_pu_remaining=0,
-             score_popups=None, boss=None):
+             score_popups=None, boss=None, difficulty=Difficulty.NORMAL):
         if state == GameState.TITLE:
             self.screen.fill(BLACK)
             sw, sh = self.screen.get_size()
@@ -32,7 +33,7 @@ class Renderer:
                 x = int(s[0] * sw / GAME_WIDTH)
                 y = int(s[1] * sh / WINDOW_HEIGHT)
                 pygame.draw.circle(self.screen, (s[2], s[2], s[2]), (x, y), s[3])
-            self._draw_title()
+            self._draw_title(difficulty)
             pygame.display.flip()
             return
 
@@ -130,19 +131,28 @@ class Renderer:
         self.game_surf.blit(t1, r1)
         self.game_surf.blit(t2, r2)
 
-    def _draw_title(self):
+    def _draw_title(self, difficulty=Difficulty.NORMAL):
         ft = pygame.font.Font(None, 72)
         fs = pygame.font.Font(None, 28)
+        fd = pygame.font.Font(None, 36)
         title = ft.render("SPACE VANGUARD", True, TEXT_ACCENT)
         sub = fs.render("Press SPACE to start", True, TEXT_MAIN)
+        diff_label = DIFFICULTY_NAMES[difficulty]
+        diff_color = {Difficulty.EASY: (100, 255, 100), Difficulty.NORMAL: TEXT_ACCENT, Difficulty.HARD: (255, 80, 80)}[difficulty]
+        diff_text = fd.render(f"< {diff_label} >", True, diff_color)
+        diff_hint = fs.render("LEFT / RIGHT to change", True, (140, 140, 140))
         ctrl = fs.render("Arrows: Move   SPACE: Shoot   P: Pause   F: Fullscreen   M: Mute   ESC: Quit", True, (140, 140, 140))
         sw, sh = self.screen.get_size()
-        r1 = title.get_rect(center=(sw // 2, sh // 2 - 40))
-        r2 = sub.get_rect(center=(sw // 2, sh // 2 + 20))
-        r3 = ctrl.get_rect(center=(sw // 2, sh // 2 + 80))
+        r1 = title.get_rect(center=(sw // 2, sh // 2 - 55))
+        r2 = diff_text.get_rect(center=(sw // 2, sh // 2))
+        r3 = diff_hint.get_rect(center=(sw // 2, sh // 2 + 30))
+        r4 = sub.get_rect(center=(sw // 2, sh // 2 + 70))
+        r5 = ctrl.get_rect(center=(sw // 2, sh // 2 + 110))
         self.screen.blit(title, r1)
-        self.screen.blit(sub, r2)
-        self.screen.blit(ctrl, r3)
+        self.screen.blit(diff_text, r2)
+        self.screen.blit(diff_hint, r3)
+        self.screen.blit(sub, r4)
+        self.screen.blit(ctrl, r5)
 
     def _present(self, state, score, high_score, lives,
                  score_multiplier, accuracy, streak=0):

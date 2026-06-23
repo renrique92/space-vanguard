@@ -1,6 +1,6 @@
 import pygame
 
-from classes import PowerUpType
+from classes import Difficulty, PowerUpType
 
 WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 700
@@ -150,6 +150,18 @@ SCORE_MULT_MIN = 0.3
 
 POWERUP_COOLDOWN = 20000
 SLOWMO_RATE = 0.3
+
+DIFFICULTY_PRESETS = {
+    Difficulty.EASY: {"speed": 0.8, "shoot": 0.7, "auto_step_ms": 1.3, "lives": 5},
+    Difficulty.NORMAL: {"speed": 1.0, "shoot": 1.0, "auto_step_ms": 1.0, "lives": 3},
+    Difficulty.HARD: {"speed": 1.3, "shoot": 1.5, "auto_step_ms": 0.7, "lives": 2},
+}
+DIFFICULTY_NAMES = {
+    Difficulty.EASY: "EASY",
+    Difficulty.NORMAL: "NORMAL",
+    Difficulty.HARD: "HARD",
+}
+DIFFICULTY_ORDER = [Difficulty.EASY, Difficulty.NORMAL, Difficulty.HARD]
 
 POWERUP_SPEED = 2
 POWERUP_CHANCE = 0.10
