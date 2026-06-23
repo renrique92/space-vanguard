@@ -50,8 +50,14 @@ class Renderer:
         self.screen_shake = screen_shake
         self.info_panel = info_panel
         self.starfield = starfield
-        self.font_level = pygame.font.Font(None, 28)
+        self.font_tiny = pygame.font.Font(None, 16)
         self.font_popup = pygame.font.Font(None, 20)
+        self.font_small = pygame.font.Font(None, 22)
+        self.font_med = pygame.font.Font(None, 28)
+        self.font_large = pygame.font.Font(None, 36)
+        self.font_xl = pygame.font.Font(None, 52)
+        self.font_xxl = pygame.font.Font(None, 56)
+        self.font_huge = pygame.font.Font(None, 72)
         self.workspace = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
 
     def draw(self, scene: SceneState) -> None:
@@ -112,8 +118,7 @@ class Renderer:
     def _draw_powerup_popup(self, msg):
         if not msg:
             return
-        font = pygame.font.Font(None, 52)
-        text = font.render(f"POWER-UP: {msg}", True, TEXT_ACCENT)
+        text = self.font_xl.render(f"POWER-UP: {msg}", True, TEXT_ACCENT)
         r = text.get_rect(center=(GAME_WIDTH // 2, WINDOW_HEIGHT // 2 - 60))
         self.game_surf.blit(text, r)
 
@@ -123,8 +128,7 @@ class Renderer:
         sec = max(1, int(remaining_ms / 1000))
         color = POWERUP_COLORS[pu_type]
         sym = POWERUP_SYMBOLS[pu_type]
-        font = pygame.font.Font(None, 22)
-        badge = font.render(f"[{sym}] {sec}s", True, color)
+        badge = self.font_small.render(f"[{sym}] {sec}s", True, color)
         bg = pygame.Surface((badge.get_width() + 12, badge.get_height() + 6))
         bg.set_alpha(120)
         bg.fill((0, 0, 0))
@@ -137,7 +141,7 @@ class Renderer:
         is_boss = level % BOSS_INTERVAL == 0
         label = f"LEVEL {level}" if not is_boss else f"BOSS LEVEL {level}"
         color = (255, 100, 50) if is_boss else TEXT_ACCENT
-        text = self.font_level.render(label, True, color)
+        text = self.font_med.render(label, True, color)
         bg = pygame.Surface((text.get_width() + 12, text.get_height() + 6))
         bg.set_alpha(100)
         bg.fill((0, 0, 0))
@@ -178,7 +182,7 @@ class Renderer:
             pygame.draw.rect(self.game_surf, bar_color, (bx, by, fill_w, bar_h))
         pygame.draw.rect(self.game_surf, DIVIDER, (bx, by, bar_w, bar_h), 1)
 
-        fs = pygame.font.Font(None, 16)
+        fs = self.font_tiny
         text = fs.render(label, True, SPECIAL_BEAM_COLOR if not active else WHITE)
         tr = text.get_rect(center=(player.rect.centerx, by + bar_h + 10))
         self.game_surf.blit(text, tr)
@@ -208,8 +212,8 @@ class Renderer:
     def _draw_level_transition(self, state, level):
         is_boss_clear = level > 0 and level % BOSS_INTERVAL == 0
 
-        ft = pygame.font.Font(None, 56)
-        fs = pygame.font.Font(None, 28)
+        ft = self.font_xxl
+        fs = self.font_med
         if state == GameState.INTRO:
             t1 = ft.render(f"LEVEL {level}", True, TEXT_ACCENT)
             t2 = fs.render("Get ready...", True, TEXT_MAIN)
@@ -225,9 +229,9 @@ class Renderer:
         self.game_surf.blit(t2, r2)
 
     def _draw_title(self, difficulty=Difficulty.NORMAL):
-        ft = pygame.font.Font(None, 72)
-        fs = pygame.font.Font(None, 28)
-        fd = pygame.font.Font(None, 36)
+        ft = self.font_huge
+        fs = self.font_med
+        fd = self.font_large
         title = ft.render("SPACE VANGUARD", True, TEXT_ACCENT)
         sub = fs.render("Press SPACE to start", True, TEXT_MAIN)
         diff_label = DIFFICULTY_NAMES[difficulty]
@@ -287,9 +291,9 @@ class Renderer:
         overlay.fill((0, 0, 0, 160))
         self.screen.blit(overlay, (0, 0))
 
-        ft = pygame.font.Font(None, 72)
-        fs = pygame.font.Font(None, 36)
-        fv = pygame.font.Font(None, 28)
+        ft = self.font_huge
+        fs = self.font_large
+        fv = self.font_med
 
         img_t = ft.render(title, True, TEXT_ACCENT)
         r_t = img_t.get_rect(center=(sw // 2, sh // 2 - 40))

@@ -375,11 +375,10 @@ class Game:
         )
 
     def _update_score_popups(self, dt: int) -> None:
-        for popup in self.score_keeper.popups[:]:
+        for popup in self.score_keeper.popups:
             popup["timer"] -= dt
             popup["y"] -= 0.5 * (dt / 16)
-            if popup["timer"] <= 0:
-                self.score_keeper.popups.remove(popup)
+        self.score_keeper.popups = [p for p in self.score_keeper.popups if p["timer"] > 0]
 
     def _check_game_state(self) -> None:
         from settings import BOSS_INTERVAL

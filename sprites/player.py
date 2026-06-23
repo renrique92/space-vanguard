@@ -37,6 +37,7 @@ POWERUP_FIELD_MAP = {
     PowerUpType.SCORE: "score",
     PowerUpType.SLOWMO: "slowmo",
 }
+FIELD_TO_TYPE = {v: k for k, v in POWERUP_FIELD_MAP.items()}
 
 
 class Player(pygame.sprite.Sprite):
@@ -96,7 +97,7 @@ class Player(pygame.sprite.Sprite):
         for field_name in POWERUP_FIELD_MAP.values():
             timer = getattr(self.effects, field_name, 0)
             if timer > 0:
-                pt = next(k for k, v in POWERUP_FIELD_MAP.items() if v == field_name)
+                pt = FIELD_TO_TYPE[field_name]
                 if pt in POWERUP_SHIP_COLORS:
                     self._draw_ship(*POWERUP_SHIP_COLORS[pt])
                     break
