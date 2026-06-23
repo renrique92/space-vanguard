@@ -29,6 +29,8 @@ def advance_level(game) -> None:
     game.powerup_spawn_cooldown = POWERUP_COOLDOWN
     diff = DIFFICULTY_PRESETS[game.difficulty]
     game.formation = EnemyFormation(generate_level(game.level), diff)
+    game.kamikazes.empty()
+    game.minions.empty()
     game.player.reset(reset_lives=False)
     if game.player.special_charge >= 1.0 and not game.player.special_used:
         game.player.special_charge = 1.0
@@ -36,6 +38,7 @@ def advance_level(game) -> None:
         game.player.special_charge = 0.0
     game.player.special_used = False
     game.player.special_active = False
+    game.boss_minion_timer = 0
     game.auto_step_timer = 0
 
 
@@ -62,6 +65,9 @@ def reset_game(game) -> None:
     game.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
     game.boss = None
     game.boss_shoot_timer = 0
+    game.boss_minion_timer = 0
+    game.kamikazes.empty()
+    game.minions.empty()
     game.bunkers = create_bunkers()
     diff = DIFFICULTY_PRESETS[game.difficulty]
     game.player.reset()

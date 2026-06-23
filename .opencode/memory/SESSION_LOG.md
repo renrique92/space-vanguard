@@ -312,3 +312,59 @@
 - Efectos: partículas de explosión, muzzle flash, screen shake.
 - README y AGENTS.md iniciales.
 - Git init, commit, push a `github.com/renrique92/space-vanguard`.
+
+---
+
+## [2026-06-23] Sesión — Batch 1: Enemy variety (5 tipos) + boss phases + kamikaze upgrade
+
+**Branch:** `main` (sin commit)
+**Archivos creados:** `classes/enemy_type.py`, `.agents/skills/python-design-patterns/`
+**Archivos modificados:** `collision.py`, `game.py`, `level_generator.py`, `levels.py`, `renderer.py`, `settings.py`, `shooting.py`, `sprites/boss.py`, `sprites/enemy.py`, `tests/test_game.py`
+
+### Qué se hizo
+
+1. **EnemyType enum** — NORMAL, SHOOTER, KAMIKAZE, SHIELD, ZIGZAG, FAST.
+
+2. **Sprites únicos por tipo** — Cada tipo tiene silueta dibujada con `_redraw_frames()` usando `pygame.draw.polygon`/`rect`. Colorkey=(1,0,1). `_dim()` redibuja frames completos. Tipos:
+   - NORMAL: clásico trapezoidal con bumps + piernas animadas
+   - SHOOTER: mismo + cañón horizontal abajo
+   - KAMIKAZE: diamante apuntando abajo
+   - SHIELD: cuerpo ancho con base redondeada (escudo)
+   - ZIGZAG: 3 bloques escalonados
+   - FAST: ala delta / jet
+
+3. **Kamikaze upgrade:**
+   - Homing: steering suave hacia X del player (dx*0.08, max 4px/frame)
+   - Aceleración: base=3 → max=10, accel=0.15/s
+   - Explosión al salir de pantalla (partículas + sonido)
+   - MuzzleFlash al despegarse de la formación
+
+4. **Boss phases:**
+   - Fase 2 a ≤50% HP: 1.5x speed, 3-bullet spread, minions cada 3s
+   - Special beam daña boss, mata kamikazes y minions
+
+5. **Shooter enemy:** dispara independientemente cada 2500ms (bypass formation.try_shoot())
+6. **Shield:** 2 HP, bullet muere al impactar pero shield sobrevive a 1 hit (se oscurece)
+7. **Level generator:** type distribution por cell, escala 3% por nivel. Pure random (sin seed).
+
+### Métricas
+
+| Antes | Después |
+|-------|---------|
+| 1 tipo de enemigo | 6 tipos |
+| Boss 1 fase | Boss 2 fases |
+| Kamikaze cae recto | Kamikaze con homing + aceleración |
+| 133 tests | 147 tests (+14) |
+| `sprites/enemy.py`: 220 LOC | `sprites/enemy.py`: 295 LOC (+75) |
+| `game.py`: ~370 LOC | `game.py`: ~408 LOC |
+
+### Decisiones
+- `_redraw_frames()` regenera ambos frames desde cero. Colorkey evita artefactos de transparencia.
+- `KamikazeEnemy.update()` ya no self-kill — game.py maneja off-screen explosion.
+- `detach_kamikazes()` ahora recibe player obj (no solo rect) para homing.
+- Boss phase check en `update()`, no en `take_hit()`.
+
+### Pendientes
+- [ ] Commit y push de Batch 1.
+- [ ] Probar gameplay manual (sprites, kamikaze homing, boss phase 2).
+- [ ] Batch 2: Power-ups, mejoras de UI, balance tuning.

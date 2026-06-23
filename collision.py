@@ -2,7 +2,7 @@ import random
 
 import pygame
 
-from classes import GameState, PowerUpType
+from classes import EnemyType, GameState, PowerUpType
 from effects import spawn_explosion
 from settings import (
     POWERUP_CHANCE, POWERUP_COOLDOWN, UFO_SPAWN_MAX, UFO_SPAWN_MIN,
@@ -29,37 +29,44 @@ def handle_bunker_collisions(game) -> None:
 def handle_enemy_collisions(game) -> None:
     dokill_player = game.player.pierce_timer <= 0
     hits = pygame.sprite.groupcollide(
-        game.player_bullets, game.formation.enemies, dokill_player, True
+        game.player_bullets, game.formation.enemies, dokill_player, False
     )
     mult = game.score_multiplier
     for bullet, enemies in hits.items():
         bullet.has_hit = True
-        for enemy in enemies:
-            game.streak += 1
-            streak_bonus = min(game.streak, 99)
-            pts = int(enemy.points * mult) + streak_bonus
-            game.score += pts
-            game.score_popups.append({
-                "text": f"+{pts}",
-                "x": enemy.rect.centerx,
-                "y": enemy.rect.centery,
-                "timer": 800,
-                "start_y": enemy.rect.centery,
-            })
+        for enemy in list(enemies):
+            killed = enemy.take_hit()
             color = enemy.image.get_at((0, 0))[:3]
-            game.particles.add(
-                spawn_explosion(
-                    enemy.rect.centerx, enemy.rect.centery, color
+            if killed:
+                game.streak += 1
+                streak_bonus = min(game.streak, 99)
+                pts = int(enemy.points * mult) + streak_bonus
+                game.score += pts
+                game.score_popups.append({
+                    "text": f"+{pts}",
+                    "x": enemy.rect.centerx,
+                    "y": enemy.rect.centery,
+                    "timer": 800,
+                    "start_y": enemy.rect.centery,
+                })
+                game.particles.add(
+                    spawn_explosion(enemy.rect.centerx, enemy.rect.centery, color)
                 )
-            )
-            game.sound.play("explosion")
-            if (game.powerup_spawn_cooldown >= POWERUP_COOLDOWN
-                    and random.random() < POWERUP_CHANCE):
-                ptype = random.choice(list(PowerUpType))
-                game.powerups.add(
-                    PowerUp(enemy.rect.centerx, enemy.rect.centery, ptype)
+                game.sound.play("explosion")
+                enemy.kill()
+                if (game.powerup_spawn_cooldown >= POWERUP_COOLDOWN
+                        and random.random() < POWERUP_CHANCE):
+                    ptype = random.choice(list(PowerUpType))
+                    game.powerups.add(
+                        PowerUp(enemy.rect.centerx, enemy.rect.centery, ptype)
+                    )
+                    game.powerup_spawn_cooldown = 0
+            else:
+                if dokill_player:
+                    bullet.kill()
+                game.particles.add(
+                    spawn_explosion(bullet.rect.centerx, bullet.rect.centery, color, count=3)
                 )
-                game.powerup_spawn_cooldown = 0
 
 
 def handle_boss_collisions(game) -> None:
@@ -102,11 +109,20 @@ def handle_powerup_collection(game) -> None:
 def handle_player_hit(game) -> None:
     if game.player.invulnerable:
         return
-    hit = pygame.sprite.spritecollide(
+
+    hit_by_bullet = pygame.sprite.spritecollide(
         game.player, game.enemy_bullets, True
     )
-    if not hit:
+    hit_by_kamikaze = pygame.sprite.spritecollide(
+        game.player, game.kamikazes, True
+    ) if game.kamikazes else []
+    hit_by_minion = pygame.sprite.spritecollide(
+        game.player, game.minions, True
+    ) if game.minions else []
+
+    if not (hit_by_bullet or hit_by_kamikaze or hit_by_minion):
         return
+
     game.player.take_hit()
     game.particles.add(
         spawn_explosion(
@@ -152,6 +168,31 @@ def handle_ufo_collision(game) -> bool:
     game.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
     game.ufo_spawn_timer = 0
     return True
+
+
+def handle_kamikaze_bullet_collisions(game) -> None:
+    hits = pygame.sprite.groupcollide(game.player_bullets, game.kamikazes, True, True)
+    for bullet, kamikazes in hits.items():
+        for kam in kamikazes:
+            game.streak += 1
+            streak_bonus = min(game.streak, 99)
+            pts = int(kam.points * game.score_multiplier) + streak_bonus
+            game.score += pts
+            game.particles.add(
+                spawn_explosion(kam.rect.centerx, kam.rect.centery, (200, 100, 50), count=4)
+            )
+
+
+def handle_minion_collisions(game) -> None:
+    hits = pygame.sprite.groupcollide(game.player_bullets, game.minions, True, True)
+    for bullet, minions in hits.items():
+        for m in minions:
+            pts = 20
+            game.score += pts
+            game.particles.add(
+                spawn_explosion(m.rect.centerx, m.rect.centery, (255, 150, 50), count=3)
+            )
+            game.sound.play("explosion")
 
 
 def handle_game_state_checks(game) -> None:
@@ -240,6 +281,20 @@ def handle_special_beam(game) -> None:
         game.ufo = None
         game.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
         game.ufo_spawn_timer = 0
+
+    for kam in list(game.kamikazes):
+        if kam.rect.colliderect(beam_rect):
+            game.streak += 1
+            pts = int(kam.points * game.score_multiplier) + min(game.streak, 99)
+            game.score += pts
+            game.particles.add(spawn_explosion(kam.rect.centerx, kam.rect.centery, (200, 100, 50), count=4))
+            kam.kill()
+
+    for m in list(game.minions):
+        if m.rect.colliderect(beam_rect):
+            game.score += 20
+            game.particles.add(spawn_explosion(m.rect.centerx, m.rect.centery, (255, 150, 50), count=3))
+            m.kill()
 
     if game.boss and game.boss.rect.colliderect(beam_rect):
         game.boss.take_hit()

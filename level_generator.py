@@ -1,10 +1,11 @@
 import random
 
 from settings import (
-    BOSS_INTERVAL, CYAN, LIME, ORANGE, RED, YELLOW,
+    BOSS_INTERVAL, CYAN, ENEMY_TYPE_CHANCES, LIME, ORANGE, RED, YELLOW,
 )
 
 COLOR_PALETTE = [RED, ORANGE, YELLOW, LIME, CYAN]
+TYPE_KEYS = ["shooter", "kamikaze", "shield", "zigzag", "fast"]
 
 
 def generate_level(level_num: int) -> dict:
@@ -22,12 +23,14 @@ def generate_level(level_num: int) -> dict:
     colors = _generate_colors(rows)
     points = _generate_points(rows, level_num)
     diff = _generate_difficulty(level_num, is_boss)
+    types = _generate_types(rng, rows, cols, pattern, level_num)
 
     return {
         "pattern": pattern,
         "colors": colors,
         "points": points,
         "difficulty": diff,
+        "types": types,
     }
 
 
@@ -70,3 +73,23 @@ def _generate_difficulty(level_num: int, is_boss: bool) -> dict:
         "shoot": shoot,
         "auto_step_ms": int(auto_step),
     }
+
+
+def _generate_types(rng, rows, cols, pattern, level_num):
+    scale = 1.0 + (level_num - 1) * 0.03
+    type_grid = []
+    for r in range(rows):
+        row_types = []
+        for c in range(cols):
+            if not pattern[r][c]:
+                row_types.append("normal")
+                continue
+            chosen = "normal"
+            for key in TYPE_KEYS:
+                chance = ENEMY_TYPE_CHANCES[key] * scale
+                if rng.random() < chance:
+                    chosen = key
+                    break
+            row_types.append(chosen)
+        type_grid.append(row_types)
+    return type_grid

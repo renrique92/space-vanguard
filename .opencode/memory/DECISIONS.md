@@ -32,3 +32,7 @@
 | 2026-06-22 | **Collision system extraído a módulo separado** | 7 funciones modulares que reciben Game instance. Cada función muta game in-place. Menos boilerplate que una clase CollisionSystem. | `collision.py` |
 | 2026-06-22 | **Level management extraído a módulo separado** | advance_level(), reset_game(), create_bunkers(), handle_transition_end(). Mismo patrón que collision.py. | `levels.py` |
 | 2026-06-22 | **Streak system: bonus lineal por kills consecutivas** | +1-99 pts extra por kill, resetea al recibir daño. Se muestra en panel. Persiste entre niveles. | `collision.py:handle_enemy_collisions`, `ui/info_panel.py` |
+| 2026-06-23 | **5 tipos de enemigos con sprites únicos** | Cada EnemyType tiene silueta distinta (trapecio, diamante, escudo, zigzag, ala delta). Dibujado con pygame.draw.polygon/rect, _COLORKEY=(1,0,1). _dim() redibuja frames completos. | `sprites/enemy.py:_redraw_frames` |
+| 2026-06-23 | **Kamikaze con homing + aceleración** | Steering suave hacia el player, acelera progresivamente (3→10 px/frame). Explota al salir de pantalla con partículas. MuzzleFlash al despegarse. | `sprites/enemy.py:KamikazeEnemy`, `settings.py` |
+| 2026-06-23 | **Boss phase 2 (≤50% HP)** | 1.5x speed, purple tint, 3-bullet spread, minions cada 3s. No nuevo sprite, solo cambios visuales/de comportamiento. | `sprites/boss.py:Boss`, `game.py:251-267` |
+| 2026-06-23 | **Pure random level generation** | generate_level() sin seed. Cada partida genera formaciones distintas. Boss cada 5 niveles, sin WIN state (infinito). | `level_generator.py` |

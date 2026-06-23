@@ -26,7 +26,8 @@ class Renderer:
              score_multiplier, streak=0,
              powerup_msg="", active_pu_type=None, active_pu_remaining=0,
              score_popups=None, boss=None, difficulty=Difficulty.NORMAL,
-             special_charge=0.0, special_active=False):
+             special_charge=0.0, special_active=False,
+             kamikazes=None, minions=None):
         if state == GameState.TITLE:
             self.screen.fill(BLACK)
             sw, sh = self.screen.get_size()
@@ -49,6 +50,10 @@ class Renderer:
             bunker.bricks.draw(self.game_surf)
         enemy_bullets.draw(self.game_surf)
         player_bullets.draw(self.game_surf)
+        if kamikazes:
+            kamikazes.draw(self.game_surf)
+        if minions:
+            minions.draw(self.game_surf)
         if state != GameState.INTRO:
             formation.enemies.draw(self.game_surf)
         if boss:

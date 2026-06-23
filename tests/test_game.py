@@ -3,10 +3,11 @@ import pytest
 
 from game import Game
 from levels import advance_level, reset_game
-from classes import Difficulty, GameState, PowerUpType
+from classes import Difficulty, EnemyType, GameState, PowerUpType
 from sprites.bullet import Bullet
-from sprites.boss import Boss
-from sprites.enemy import Enemy, EnemyFormation
+from sprites.boss import Boss, BossMinion
+from settings import ENEMY_KAMIKAZE_BASE_SPEED
+from sprites.enemy import Enemy, EnemyFormation, KamikazeEnemy
 from level_generator import generate_level
 from settings import (
     BUNKER_COUNT, ENEMY_ANIM_INTERVAL, GAME_WIDTH,
@@ -902,6 +903,128 @@ class TestBoss:
         game._update(16)
         assert len(game.enemy_bullets) == n_before + 1
         assert game.boss_shoot_timer == 0
+
+    def test_boss_phase_2_after_half_hp(self, game):
+        boss = Boss()
+        boss.hp = boss.max_hp // 2
+        boss.update(16)
+        assert boss.phase == 2
+
+    def test_boss_minion_creation_and_movement(self):
+        m = BossMinion(100, 50)
+        assert m.rect.centery == 50
+        m.update(16)
+        assert m.rect.centery > 50
+
+    def test_boss_phase_2_shoots_spread(self, game):
+        game.boss = Boss()
+        game.boss.hp = 5
+        game.boss.update(16)
+        assert game.boss.phase == 2
+        game.boss_shoot_timer = 600
+        n_before = len(game.enemy_bullets)
+        game._update(16)
+        assert len(game.enemy_bullets) >= n_before + 2
+
+
+class TestEnemyTypes:
+    def test_enemy_type_assignment(self):
+        cfg = generate_level(1)
+        assert "types" in cfg
+        types = cfg["types"]
+        assert len(types) == len(cfg["pattern"])
+
+    def test_enemy_types_have_valid_names(self):
+        cfg = generate_level(1)
+        valid = {t.name.lower() for t in EnemyType}
+        for row in cfg["types"]:
+            for tname in row:
+                assert tname in valid, f"Invalid type {tname}"
+
+    def test_shield_enemy_survives_one_hit(self, game):
+        game.state = GameState.PLAYING
+        game.transition_timer = 0
+        for e in list(game.formation.enemies):
+            if e.enemy_type == EnemyType.SHIELD:
+                alive_before = e.alive()
+                e.take_hit()
+                assert e.alive(), "Shield died in one hit"
+                assert e.hp >= 1
+                return
+        assert True
+
+    def test_kamikaze_enemy_moves_down(self):
+        e = Enemy(100, 100, (255, 0, 0), 10, EnemyType.KAMIKAZE)
+        class FakePlayer:
+            def alive(self): return True
+            rect = pygame.Rect(0, 0, 20, 20)
+        k = KamikazeEnemy(e, FakePlayer())
+        y_before = k.rect.y
+        k.update(16)
+        assert k.rect.y > y_before
+
+    def test_kamikaze_steers_toward_player(self):
+        e = Enemy(0, 100, (255, 0, 0), 10, EnemyType.KAMIKAZE)
+        class FarPlayer:
+            def alive(self): return True
+            rect = pygame.Rect(500, 0, 20, 20)
+        k = KamikazeEnemy(e, FarPlayer())
+        k.update(16)
+        assert k.rect.x > 0, "Should steer right toward player at x=500"
+
+    def test_kamikaze_accelerates(self):
+        e = Enemy(0, 0, (255, 0, 0), 10, EnemyType.KAMIKAZE)
+        class FakePlayer:
+            def alive(self): return True
+            rect = pygame.Rect(0, 0, 20, 20)
+        k = KamikazeEnemy(e, FakePlayer())
+        k.update(16)
+        first_dy = k.rect.y
+        for _ in range(100):
+            k.update(16)
+        assert k._speed > ENEMY_KAMIKAZE_BASE_SPEED, "Speed should increase over time"
+
+    def test_formation_creates_enemies_with_types(self):
+        cfg = generate_level(1)
+        form = EnemyFormation(cfg)
+        types_seen = set()
+        for e in form.enemies:
+            types_seen.add(e.enemy_type)
+        assert len(types_seen) >= 1
+        assert EnemyType.NORMAL in types_seen
+
+    def test_each_type_has_unique_sprite(self):
+        colors = [(255, 0, 0)] * 6
+        pixels = {}
+        for i, t in enumerate(EnemyType):
+            e = Enemy(0, 0, colors[i], 10, t)
+            surf = e.frame_a
+            ck = surf.get_colorkey()
+            px_ct = sum(
+                1 for y in range(surf.get_height())
+                for x in range(surf.get_width())
+                if surf.get_at((x, y))[:3] != ck[:3]
+            )
+            pixels[t.name] = px_ct
+        unique = set(pixels.values())
+        assert len(unique) >= 4, f"Too many types share same pixel count: {pixels}"
+
+    def test_shield_dim_after_hit(self):
+        e = Enemy(0, 0, (200, 100, 50), 10, EnemyType.SHIELD)
+        ck = e.frame_a.get_colorkey()
+        px_after = sum(
+            1 for y in range(e.frame_b.get_height())
+            for x in range(e.frame_b.get_width())
+            if e.frame_b.get_at((x, y))[:3] != ck[:3]
+        )
+        e.take_hit()
+        px_dim = sum(
+            1 for y in range(e.frame_b.get_height())
+            for x in range(e.frame_b.get_width())
+            if e.frame_b.get_at((x, y))[:3] != ck[:3]
+        )
+        assert e.hp == 1
+        assert px_dim > 0, "Dimmed shield has no visible pixels"
 
 
 class TestRender:

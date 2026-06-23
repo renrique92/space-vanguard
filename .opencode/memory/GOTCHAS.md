@@ -78,6 +78,22 @@ Cada bunker es un `Bunker()` con `self.bricks` (pygame.sprite.Group). Se usa `gr
 - **NO USAR** `sounds["bgm"].play(loops=-1)` directamente — usar `play_bgm()`.
 - **NO ASUME** mixer disponible — método seguro si `self.available = False`.
 
+### _COLORKEY = (1, 0, 1) en Enemy sprites
+Los sprites de enemigos ahora usan _COLORKEY para transparencia en vez de ser superficies opacas con relleno. `_redraw_frames()` regenera ambos frames desde cero cada vez (también desde `_dim()`). No usar `frame.fill()` asumiendo fondo opaco.
+- **REDIBUJAR COMPLETO** cada frame en `_redraw_frames()` — no parchear cambiando solo colores.
+- **COLORKEY** es (1, 0, 1, 255) — improbable que colisione con colores de juego (todos RGB con valores > 1 en al menos 2 canales, o > 1 en el canal R).
+- **DIM:** `_dim()` ya no modifica surfaces in-place, llama `_redraw_frames(dimmed_color)`.
+
+### Kamikaze homing no self-kill
+`KamikazeEnemy.update()` ya no mata al sprite cuando sale de pantalla. La muerte la maneja `game.py:250-256` que spawna una explosión antes del `kill()`. Si se añade otro lugar que cree KamikazeEnemy, debe limpiar off-screen también.
+
+### Boss phase 2 trigger en update(), no en take_hit()
+El cambio de fase del boss se verifica en `Boss.update()` usando `hp_ratio`, no en `take_hit()`. Si se necesita fase 2 inmediatamente al pasar el umbral, llamar `boss.update(0)` después de `take_hit()`.
+
+### Shooter enemies bypass formation.try_shoot()
+Los enemigos SHOOTER disparan independientemente via `get_shooter_shots()` en `shooting.py`, no a través de `formation.try_shoot()`. La tasa de disparo de shooter es fija (2500ms), no escala con número de enemigos vivos.
+- **NO DUPLICAR** disparos de shooter desde `try_shoot()` — ya se manejan aparte.
+
 ### ENEMY_SHOOT_RATE_PER_ENEMY = 0.00025
 La tasa de disparo total es `ENEMY_SHOOT_RATE_BASE + ENEMY_SHOOT_RATE_PER_ENEMY * len(enemies)`. Con 20 enemigos: `0.015 + 20 * 0.00025 = 0.02` → ~2% por frame.
 - **NO duplicar** este valor sin rebalancear todo.

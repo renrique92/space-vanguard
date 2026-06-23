@@ -11,11 +11,14 @@ from collision import (
     handle_bunker_collisions,
     handle_enemy_collisions,
     handle_game_state_checks,
+    handle_kamikaze_bullet_collisions,
+    handle_minion_collisions,
     handle_player_hit,
     handle_powerup_collection,
     handle_special_beam,
     handle_ufo_collision,
 )
+from effects import MuzzleFlash, spawn_explosion
 from shooting import handle_enemy_shooting
 from level_generator import generate_level
 from levels import (
@@ -102,6 +105,9 @@ class Game:
         self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
         self.boss = None
         self.boss_shoot_timer = 0
+        self.boss_minion_timer = 0
+        self.kamikazes = pygame.sprite.Group()
+        self.minions = pygame.sprite.Group()
 
         self.bunkers = create_bunkers()
 
@@ -230,9 +236,24 @@ class Game:
         self._prev_player_bullets = set(self.player_bullets.sprites())
         self.player_bullets.update()
         self.enemy_bullets.update()
+        self.kamikazes.update(dt)
+        self.minions.update(dt)
         self.particles.update(dt)
         self.flash_fx.update(dt)
         self._update_score_popups(dt)
+
+        new_kamikazes = self.formation.detach_kamikazes(self.player)
+        for k in new_kamikazes:
+            self.kamikazes.add(k)
+            self.flash_fx.add(MuzzleFlash(k.rect.centerx, k.rect.top))
+
+        for kam in list(self.kamikazes):
+            if kam.rect.top > WINDOW_HEIGHT + 50:
+                self.particles.add(
+                    spawn_explosion(kam.rect.centerx, WINDOW_HEIGHT, (200, 100, 50), count=8)
+                )
+                self.sound.play("explosion")
+                kam.kill()
 
         self.powerup_spawn_cooldown += dt
         self._update_ufo(dt)
@@ -240,16 +261,33 @@ class Game:
         if self.boss:
             self.boss.update(dt)
             self.boss_shoot_timer += dt
-            if self.boss_shoot_timer >= 800:
+            shoot_interval = 600 if self.boss.phase == 2 else 800
+            if self.boss_shoot_timer >= shoot_interval:
                 self.boss_shoot_timer = 0
-                x, y = self.boss.try_shoot()
-                self.enemy_bullets.add(
-                    Bullet(x, y, ENEMY_BULLET_SPEED + 2, is_player=False)
-                )
+                if self.boss.phase == 2:
+                    cx = self.player.rect.centerx
+                    cy = self.boss.rect.bottom
+                    for ox in (-10, 0, 10):
+                        b = Bullet(cx + ox, cy, ENEMY_BULLET_SPEED + 2, is_player=False, vx=ox * 0.3)
+                        self.enemy_bullets.add(b)
+                else:
+                    x, y = self.boss.try_shoot()
+                    self.enemy_bullets.add(
+                        Bullet(x, y, ENEMY_BULLET_SPEED + 2, is_player=False)
+                    )
+
+            self.boss_minion_timer += dt
+            if self.boss.phase == 2 and self.boss_minion_timer >= 3000:
+                self.boss_minion_timer = 0
+                from sprites.boss import BossMinion
+                m = BossMinion(self.boss.rect.centerx, self.boss.rect.bottom)
+                self.minions.add(m)
 
         handle_bunker_collisions(self)
         handle_enemy_collisions(self)
         handle_boss_collisions(self)
+        handle_kamikaze_bullet_collisions(self)
+        handle_minion_collisions(self)
         handle_powerup_collection(self)
 
         if self.powerup_msg_timer > 0:
@@ -350,6 +388,8 @@ class Game:
             boss=self.boss,
             special_charge=self.player.special_charge,
             special_active=self.player.special_active,
+            kamikazes=self.kamikazes,
+            minions=self.minions,
         )
 
     def _load_high_score(self) -> int:
