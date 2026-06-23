@@ -30,10 +30,10 @@ class TestInit:
         assert game.level == 1
         assert game.player.lives == PLAYER_LIVES
         assert game.running is True
-        assert game.score == 0
+        assert game.score_keeper.score == 0
 
     def test_high_score_loaded(self, game):
-        assert isinstance(game.high_score, int)
+        assert isinstance(game.score_keeper.high_score, int)
 
     def test_enemy_formation_created(self, game):
         assert len(game.formation.enemies) > 0
@@ -78,9 +78,9 @@ class TestLevelTransition:
         assert game.level == lvl + 1
 
     def test_advance_level_resets_elapsed_time(self, game):
-        game.elapsed_time = 5000
+        game.score_keeper.elapsed_time = 5000
         advance_level(game)
-        assert game.elapsed_time == 0
+        assert game.score_keeper.elapsed_time == 0
 
     def test_advance_level_new_formation(self, game):
         old_formation = game.formation
@@ -236,13 +236,13 @@ class TestCollision:
         assert not enemy.alive()
 
     def test_bullet_hit_adds_score(self, game):
-        score_before = game.score
+        score_before = game.score_keeper.score
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
         game._update(16)
-        assert game.score > score_before
+        assert game.score_keeper.score > score_before
 
     def test_enemy_bullet_hits_player(self, game):
         game.player.invulnerable = False
@@ -256,16 +256,16 @@ class TestCollision:
 
 class TestScore:
     def test_multiplier_starts_high(self, game):
-        assert game.score_multiplier == pytest.approx(SCORE_MULT_START)
+        assert game._get_multiplier() == pytest.approx(SCORE_MULT_START)
 
     def test_multiplier_decays(self, game):
-        game.elapsed_time = 5000
+        game.score_keeper.elapsed_time = 5000
         expected = max(SCORE_MULT_MIN, SCORE_MULT_START - 5 / SCORE_MULT_DECAY)
-        assert game.score_multiplier == pytest.approx(expected)
+        assert game._get_multiplier() == pytest.approx(expected)
 
     def test_multiplier_floor(self, game):
-        game.elapsed_time = 999999
-        assert game.score_multiplier == pytest.approx(SCORE_MULT_MIN)
+        game.score_keeper.elapsed_time = 999999
+        assert game._get_multiplier() == pytest.approx(SCORE_MULT_MIN)
 
 class TestStateMachine:
     def test_game_over_on_zero_lives(self, game):
@@ -283,28 +283,28 @@ class TestStateMachine:
         game.state = GameState.GAME_OVER
         reset_game(game)
         assert game.state == GameState.INTRO
-        assert game.score == 0
+        assert game.score_keeper.score == 0
         assert game.level == 1
 
     def test_boss_at_interval_spawns_on_clear(self, game):
         game.level = BOSS_INTERVAL
         game.formation.enemies.empty()
         game._update(16)
-        assert game.boss is not None
+        assert game.boss_manager.boss is not None
         assert game.state == GameState.PLAYING
 
     def test_boss_defeated_transitions(self, game):
         game.level = BOSS_INTERVAL
         game.formation.enemies.empty()
         game._update(16)
-        assert game.boss is not None
-        for _ in range(game.boss.max_hp):
-            game.boss.take_hit()
-        assert game.boss.hp <= 0
+        assert game.boss_manager.boss is not None
+        for _ in range(game.boss_manager.boss.max_hp):
+            game.boss_manager.boss.take_hit()
+        assert game.boss_manager.boss.hp <= 0
         game._update(16)
         assert game.transition_timer > 0
         assert game.state == GameState.PLAYING
-        assert game.boss is None
+        assert game.boss_manager.boss is None
 
     def test_level_up_on_clear(self, game):
         game.level = 1
@@ -323,21 +323,21 @@ class TestStateMachine:
 
 class TestHighScore:
     def test_save_updates_high_score(self, game, tmp_path):
-        game.score = 999
-        game.high_score = 100
-        game._save_high_score()
-        assert game.high_score == 999
+        game.score_keeper.score = 999
+        game.score_keeper.high_score = 100
+        game.score_keeper.save()
+        assert game.score_keeper.high_score == 999
 
     def test_save_does_not_lower(self, game):
-        game.score = 50
-        game.high_score = 100
-        game._save_high_score()
-        assert game.high_score == 100
+        game.score_keeper.score = 50
+        game.score_keeper.high_score = 100
+        game.score_keeper.save()
+        assert game.score_keeper.high_score == 100
 
     def test_persistence(self, game):
-        game.score = 500
-        game._save_high_score()
-        hs = game._load_high_score()
+        game.score_keeper.score = 500
+        game.score_keeper.save()
+        hs = game.score_keeper._load()
         assert hs == 500
 
 
@@ -366,14 +366,14 @@ class TestParticles:
 
 class TestUFO:
     def test_ufo_starts_none(self, game):
-        assert game.ufo is None
-        assert game.ufo_spawn_timer == 0
+        assert game.ufo_manager.ufo is None
+        assert game.ufo_manager.spawn_timer == 0
 
     def test_ufo_spawns_after_delay(self, game):
-        game.ufo_spawn_delay = 100
-        game.ufo_spawn_timer = 100
-        game._update_ufo(16)
-        assert game.ufo is not None
+        game.ufo_manager.spawn_delay = 100
+        game.ufo_manager.spawn_timer = 100
+        game.ufo_manager.update(16)
+        assert game.ufo_manager.ufo is not None
 
     def test_ufo_moves_across_screen(self, game):
         from sprites.ufo import UFO
@@ -395,27 +395,34 @@ class TestUFO:
     def test_ufo_hit_adds_score(self, game):
         from sprites.ufo import UFO
         from sprites.bullet import Bullet
+        from collision import check_ufo_collision
         u = UFO()
-        game.ufo = u
-        score_before = game.score
+        game.ufo_manager.ufo = u
+        score_before = game.score_keeper.score
         bullet = Bullet(u.rect.centerx, u.rect.top, -9, is_player=True)
         game.player_bullets.add(bullet)
-        game._update_ufo(16)
-        assert game.score > score_before
-        assert game.ufo is None
+        ufo_event = check_ufo_collision(game.player_bullets, game.ufo_manager.ufo)
+        if ufo_event:
+            game.score_keeper.score += ufo_event.points
+            game.score_keeper.add_popup(ufo_event.points, ufo_event.x, ufo_event.y)
+            game.ufo_manager.despawn()
+        assert game.score_keeper.score > score_before
+        assert game.ufo_manager.ufo is None
 
     def test_ufo_reset_on_level_advance(self, game):
-        game.ufo = object()
+        from sprites.ufo import UFO
+        game.ufo_manager.ufo = UFO()
         advance_level(game)
-        assert game.ufo is None
-        assert game.ufo_spawn_timer == 0
+        assert game.ufo_manager.ufo is None
+        assert game.ufo_manager.spawn_timer == 0
 
     def test_ufo_reset_on_game_reset(self, game):
-        game.ufo = object()
+        from sprites.ufo import UFO
+        game.ufo_manager.ufo = UFO()
         game.state = GameState.GAME_OVER
         reset_game(game)
-        assert game.ufo is None
-        assert game.ufo_spawn_timer == 0
+        assert game.ufo_manager.ufo is None
+        assert game.ufo_manager.spawn_timer == 0
 
     def test_ufo_spawns_in_random_direction(self, game):
         from sprites.ufo import UFO
@@ -512,7 +519,7 @@ class TestBGM:
 
 class TestPowerUp:
     def test_powerup_starts_empty(self, game):
-        assert len(game.powerups) == 0
+        assert len(game.powerup_manager.powerups) == 0
 
     def test_powerup_falls_and_dies_offscreen(self, game):
         pu = PowerUp(100, WINDOW_HEIGHT + 10, PowerUpType.SPEED)
@@ -533,24 +540,24 @@ class TestPowerUp:
 
     def test_powerup_collect_activates_spread(self, game):
         pu = PowerUp(200, 200, PowerUpType.SPREAD)
-        game.powerups.add(pu)
+        game.powerup_manager.powerups.add(pu)
         game.player.rect.center = (200, 200)
         game._update(16)
-        assert game.player.spread_timer > 0
+        assert game.player.effects.spread > 0
 
     def test_powerup_collect_activates_shield(self, game):
         pu = PowerUp(200, 200, PowerUpType.SHIELD)
-        game.powerups.add(pu)
+        game.powerup_manager.powerups.add(pu)
         game.player.rect.center = (200, 200)
         game._update(16)
-        assert game.player.shield_timer > 0
+        assert game.player.effects.shield > 0
 
     def test_powerup_collect_activates_speed(self, game):
         pu = PowerUp(200, 200, PowerUpType.SPEED)
-        game.powerups.add(pu)
+        game.powerup_manager.powerups.add(pu)
         game.player.rect.center = (200, 200)
         game._update(16)
-        assert game.player.speed_timer > 0
+        assert game.player.effects.speed > 0
         game._update(16)
         assert game.player.speed == 10
 
@@ -571,77 +578,77 @@ class TestPowerUp:
         assert len(bullets) == 0
 
     def test_powerup_cleared_on_reset(self, game):
-        game.powerups.add(PowerUp(200, 200, PowerUpType.SPEED))
+        game.powerup_manager.powerups.add(PowerUp(200, 200, PowerUpType.SPEED))
         reset_game(game)
-        assert len(game.powerups) == 0
+        assert len(game.powerup_manager.powerups) == 0
 
     def test_powerup_cleared_on_advance_level(self, game):
-        game.powerups.add(PowerUp(200, 200, PowerUpType.SPEED))
+        game.powerup_manager.powerups.add(PowerUp(200, 200, PowerUpType.SPEED))
         advance_level(game)
-        assert len(game.powerups) == 0
+        assert len(game.powerup_manager.powerups) == 0
 
     def test_shield_absorbs_one_hit(self, game):
-        game.player.shield_timer = 8000
+        game.player.effects.shield = 8000
         lives_before = game.player.lives
         game.player.take_hit()
         assert game.player.lives == lives_before
-        assert game.player.shield_timer == 0
+        assert game.player.effects.shield == 0
 
     def test_powerup_draw_no_crash(self, game):
         pu = PowerUp(200, 200, PowerUpType.SPREAD)
-        game.powerups.add(pu)
+        game.powerup_manager.powerups.add(pu)
         game._draw()
 
     def test_powerup_timers_expire(self, game):
-        game.player.spread_timer = 100
-        game.player.shield_timer = 100
-        game.player.speed_timer = 100
+        game.player.effects.spread = 100
+        game.player.effects.shield = 100
+        game.player.effects.speed = 100
         for _ in range(10):
             game._update(16)
-        assert game.player.spread_timer <= 0
-        assert game.player.shield_timer <= 0
-        assert game.player.speed_timer <= 0
+        assert game.player.effects.spread <= 0
+        assert game.player.effects.shield <= 0
+        assert game.player.effects.speed <= 0
 
     def test_powerup_replaces_active(self, game):
         pu1 = PowerUp(200, 200, PowerUpType.SHIELD)
         pu2 = PowerUp(200, 200, PowerUpType.RAPID)
-        game.powerups.add(pu1)
+        game.powerup_manager.powerups.add(pu1)
         game.player.rect.center = (200, 200)
         game._update(16)
-        assert game.player.shield_timer > 0
-        assert game.player.rapid_timer == 0
-        game.powerups.add(pu2)
+        assert game.player.effects.shield > 0
+        assert game.player.effects.rapid == 0
+        game.powerup_manager.powerups.add(pu2)
         game._update(16)
-        assert game.player.shield_timer == 0
-        assert game.player.rapid_timer > 0
+        assert game.player.effects.shield == 0
+        assert game.player.effects.rapid > 0
 
     def test_powerup_msg_shown(self, game):
-        game.powerup_msg = ""
-        game.powerup_msg_timer = 0
+        game.powerup_manager.msg = ""
+        game.powerup_manager.msg_timer = 0
         pu = PowerUp(200, 200, PowerUpType.SPREAD)
-        game.powerups.add(pu)
+        game.powerup_manager.powerups.add(pu)
         game.player.rect.center = (200, 200)
         game._update(16)
-        assert game.powerup_msg == "Spread"
-        assert game.powerup_msg_timer > 0
+        assert game.powerup_manager.msg == "Spread"
+        assert game.powerup_manager.msg_timer > 0
 
     def test_powerup_msg_expires(self, game):
-        game.powerup_msg = "Test"
-        game.powerup_msg_timer = 100
+        game.powerup_manager.msg = "Test"
+        game.powerup_manager.msg_timer = 100
         game._update(200)
-        assert game.powerup_msg == ""
+        assert game.powerup_manager.msg == ""
 
     def test_ship_color_changes_on_powerup(self, game):
         from sprites.player import POWERUP_SHIP_COLORS
         pu = PowerUp(200, 200, PowerUpType.SPREAD)
-        game.powerups.add(pu)
+        game.powerup_manager.powerups.add(pu)
         game.player.rect.center = (200, 200)
         game._update(16)
         color = game.player.image.get_at((game.player.rect.width // 2, 0))[:3]
         assert color == POWERUP_SHIP_COLORS[PowerUpType.SPREAD][0]
 
     def test_ship_restores_default_when_powerup_expires(self, game):
-        game.player.spread_timer = 50
+        game.player.effects.spread = 50
         game._update(16)
         for _ in range(5):
             game._update(16)
@@ -650,30 +657,30 @@ class TestPowerUp:
         assert color == GREEN
 
     def test_powerup_spawn_cooldown_blocks(self, game):
-        game.powerup_spawn_cooldown = 0
-        assert game.powerup_spawn_cooldown < POWERUP_COOLDOWN
+        game.powerup_manager.spawn_cooldown = 0
+        assert game.powerup_manager.spawn_cooldown < POWERUP_COOLDOWN
 
     def test_powerup_spawn_cooldown_allows_after_wait(self, game):
-        game.powerup_spawn_cooldown = POWERUP_COOLDOWN
-        assert game.powerup_spawn_cooldown >= POWERUP_COOLDOWN
+        game.powerup_manager.spawn_cooldown = POWERUP_COOLDOWN
+        assert game.powerup_manager.spawn_cooldown >= POWERUP_COOLDOWN
 
     def test_rapid_fire_custom_shot_delay(self, game):
-        game.player.rapid_timer = 1000
+        game.player.effects.rapid = 1000
         assert game._shot_timer == 0
         shot_delay = 80
         game._shot_timer = shot_delay
         assert game._shot_timer > 0
-        assert game.player.rapid_timer > 0
+        assert game.player.effects.rapid > 0
 
     def test_score_powerup_overrides_multiplier(self, game):
-        game.player.score_timer = 1000
-        assert game.score_multiplier == 2.0
+        game.player.effects.score = 1000
+        assert game._get_multiplier() == 2.0
 
     def test_score_multiplier_normal_when_not_active(self, game):
-        game.player.score_timer = 0
-        game.elapsed_time = 0
+        game.player.effects.score = 0
+        game.score_keeper.elapsed_time = 0
         from settings import SCORE_MULT_START
-        assert game.score_multiplier == SCORE_MULT_START
+        assert game._get_multiplier() == SCORE_MULT_START
 
     def test_slowmo_slows_enemies(self, game):
         from settings import SLOWMO_RATE
@@ -694,7 +701,7 @@ class TestPowerUp:
             200, 220, -PLAYER_BULLET_SPEED, is_player=True
         )
         game.player_bullets.add(bullet)
-        game.player.pierce_timer = 1000
+        game.player.effects.pierce = 1000
         game._update(16)
         assert bullet.alive()
         assert not enemy1.alive()
@@ -709,17 +716,17 @@ class TestPowerUp:
             200, 220, -PLAYER_BULLET_SPEED, is_player=True
         )
         game.player_bullets.add(bullet)
-        game.player.pierce_timer = 0
+        game.player.effects.pierce = 0
         game._update(16)
         assert not bullet.alive()
         assert len(game.formation.enemies) == 0
 
     def test_activate_clears_previous(self, game):
         game.player.activate_powerup(PowerUpType.SPREAD)
-        assert game.player.spread_timer > 0
+        assert game.player.effects.spread > 0
         game.player.activate_powerup(PowerUpType.SLOWMO)
-        assert game.player.spread_timer == 0
-        assert game.player.slowmo_timer > 0
+        assert game.player.effects.spread == 0
+        assert game.player.effects.slowmo > 0
 
     def test_all_powerup_types_have_duration(self, game):
         for pt in PowerUpType:
@@ -730,10 +737,10 @@ class TestPowerUp:
 class TestEdgeCase:
     def test_title_update_returns_early(self, game):
         game.state = GameState.TITLE
-        score_before = game.score
+        score_before = game.score_keeper.score
         game._update(16)
         assert game.state == GameState.TITLE
-        assert game.score == score_before
+        assert game.score_keeper.score == score_before
 
     def test_empty_formation_try_shoot_returns_none(self, game):
         game.formation.enemies.empty()
@@ -752,20 +759,20 @@ class TestEdgeCase:
         assert game._create_bullet() == []
 
     def test_score_popup_removed_after_expiry(self, game):
-        game.score_popups.append({
+        game.score_keeper.popups.append({
             "text": "+100", "x": 100, "y": 100, "timer": 50, "start_y": 100,
         })
         game._update_score_popups(100)
-        assert len(game.score_popups) == 0
+        assert len(game.score_keeper.popups) == 0
 
     def test_empty_bunkers_no_crash(self, game):
         game.bunkers = []
         game._update(16)
 
     def test_stars_wrap_around(self, game):
-        s = game.stars[0]
+        s = game.starfield.stars[0]
         s[1] = WINDOW_HEIGHT + 10
-        game._update_stars(16)
+        game.starfield.update(16)
         assert 0 <= s[1] < WINDOW_HEIGHT
 
     def test_formation_update_empty_no_crash(self, game):
@@ -802,78 +809,78 @@ class TestDifficulty:
 
 class TestStreak:
     def test_streak_increments_on_kill(self, game):
-        game.streak = 5
+        game.score_keeper.streak = 5
         game.formation.enemies.empty()
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
         game._update(16)
-        assert game.streak == 6
+        assert game.score_keeper.streak == 6
 
     def test_streak_resets_on_hit(self, game):
-        game.streak = 10
+        game.score_keeper.streak = 10
         game.player.invulnerable = False
         bullet = Bullet(
             game.player.rect.centerx, game.player.rect.top, 5, is_player=False
         )
         game.enemy_bullets.add(bullet)
         game._update(16)
-        assert game.streak == 0
+        assert game.score_keeper.streak == 0
 
     def test_streak_persists_on_level_advance(self, game):
-        game.streak = 15
+        game.score_keeper.streak = 15
         advance_level(game)
-        assert game.streak == 15
+        assert game.score_keeper.streak == 15
 
     def test_streak_resets_on_game_reset(self, game):
-        game.streak = 20
+        game.score_keeper.streak = 20
         reset_game(game)
-        assert game.streak == 0
+        assert game.score_keeper.streak == 0
 
     def test_streak_bonus_added_to_score(self, game):
-        game.streak = 50
-        game.elapsed_time = 0
+        game.score_keeper.streak = 50
+        game.score_keeper.elapsed_time = 0
         game.formation.enemies.empty()
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
-        score_before = game.score
+        score_before = game.score_keeper.score
         game._update(16)
-        delta = game.score - score_before
+        delta = game.score_keeper.score - score_before
         assert delta >= 50
 
     def test_streak_bonus_caps_at_99(self, game):
-        game.streak = 200
-        game.elapsed_time = 0
+        game.score_keeper.streak = 200
+        game.score_keeper.elapsed_time = 0
         game.formation.enemies.empty()
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
-        score_before = game.score
+        score_before = game.score_keeper.score
         game._update(16)
-        delta = game.score - score_before
+        delta = game.score_keeper.score - score_before
         assert delta >= 99
         assert delta < 200
 
     def test_miss_resets_streak(self, game):
-        game.streak = 10
+        game.score_keeper.streak = 10
         bullet = Bullet(100, -30, -9, is_player=True)
         game.player_bullets.add(bullet)
         game._update(16)
-        assert game.streak == 0
+        assert game.score_keeper.streak == 0
 
     def test_hit_preserves_streak(self, game):
-        game.streak = 10
+        game.score_keeper.streak = 10
         game.formation.enemies.empty()
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
         game._update(16)
-        assert game.streak == 11
+        assert game.score_keeper.streak == 11
 
 
 class TestBoss:
@@ -897,12 +904,12 @@ class TestBoss:
         assert not boss.alive()
 
     def test_boss_shoots_after_timer(self, game):
-        game.boss = Boss()
-        game.boss_shoot_timer = 800
+        game.boss_manager.boss = Boss()
+        game.boss_manager.shoot_timer = 800
         n_before = len(game.enemy_bullets)
         game._update(16)
         assert len(game.enemy_bullets) == n_before + 1
-        assert game.boss_shoot_timer == 0
+        assert game.boss_manager.shoot_timer == 0
 
     def test_boss_phase_2_after_half_hp(self, game):
         boss = Boss()
@@ -917,11 +924,11 @@ class TestBoss:
         assert m.rect.centery > 50
 
     def test_boss_phase_2_shoots_spread(self, game):
-        game.boss = Boss()
-        game.boss.hp = 5
-        game.boss.update(16)
-        assert game.boss.phase == 2
-        game.boss_shoot_timer = 600
+        game.boss_manager.boss = Boss()
+        game.boss_manager.boss.hp = 5
+        game.boss_manager.boss.update(16)
+        assert game.boss_manager.boss.phase == 2
+        game.boss_manager.shoot_timer = 600
         n_before = len(game.enemy_bullets)
         game._update(16)
         assert len(game.enemy_bullets) >= n_before + 2
@@ -1057,14 +1064,14 @@ class TestRender:
     def test_draw_transition_with_boss_powerups(self, game):
         game.state = GameState.INTRO
         game.transition_timer = 2000
-        game.boss = Boss()
+        game.boss_manager.boss = Boss()
         from sprites.powerup import PowerUp
-        game.powerups.add(PowerUp(200, 200, PowerUpType.SPREAD))
+        game.powerup_manager.powerups.add(PowerUp(200, 200, PowerUpType.SPREAD))
         game.player.activate_powerup(PowerUpType.SHIELD)
         game._draw()
 
     def test_draw_score_popups(self, game):
-        game.score_popups.append({
+        game.score_keeper.popups.append({
             "text": "+100", "x": 100, "y": 100, "timer": 500, "start_y": 100,
         })
         game._draw()

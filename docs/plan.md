@@ -1,66 +1,66 @@
-# Space Vanguard — Plan de Evolución
+# Space Vanguard — Evolution Plan
 
-## Estado Actual
+## Current State
 
-**Núcleo sólido**: game loop, state machine, 5 niveles, 7 power-ups, UFO, bunkers, partículas, screen shake, sonido sintetizado, BGM, HUD, persistencia, sistema de streak, 103 tests headless. +2000 LOC, 0 assets externos.
+**Solid core**: game loop, state machine, 5 levels, 7 power-ups, UFO, bunkers, particles, screen shake, synthesized sound, BGM, HUD, persistence, streak system, 103 headless tests. +2000 LOC, 0 external assets.
 
 ---
 
-## Áreas de Mejora (checkeado contra código real)
+## Improvement Areas (verified against real code)
 
-### Bugs — ✅ Resueltos
-1. ✅ `get_ticks()` migrado a dt-based (Fase 1)
-2. ✅ `_anim_timer` usa `-=` (no `= 0`)
+### Bugs — Resolved
+1. ✅ `get_ticks()` migrated to dt-based (Phase 1)
+2. ✅ `_anim_timer` uses `-=` (not `= 0`)
 
-### Deuda Técnica
-3. `settings.py` monolítico (196 LOC) — manejable, no urgente
-4. ~~`Game` class (~400 LOC)~~ → Ahora 370 LOC con 3 módulos extraídos (`collision.py`, `levels.py`, `renderer.py`) ✅
-5. ~~Cero type hints~~ → Todos los métodos de `Game` tienen type hints ✅
-6. ~~`EnemyFormation.reset()`~~ → No existe en el código actual ✅
-7. ~~`utils.draw_text()`~~ → `utils.py` no existe ✅
-8. ~~Alias `TP`~~ → Eliminado (Fase 7c) ✅
-9. ~~`BUNKER_HIT_COLOR` no usado~~ → Sí se usa en `bunker.py` ✅
+### Technical Debt
+3. `settings.py` monolithic (196 LOC) — manageable, not urgent
+4. ~~`Game` class (~400 LOC)~~ → Now 370 LOC with 3 extracted modules (`collision.py`, `levels.py`, `renderer.py`)
+5. ~~Zero type hints~~ → All `Game` methods have type hints
+6. ~~`EnemyFormation.reset()`~~ → Doesn't exist in current code
+7. ~~`utils.draw_text()`~~ → `utils.py` doesn't exist
+8. ~~`TP` alias~~ → Removed (Phase 7c)
+9. ~~`BUNKER_HIT_COLOR` unused~~ → It is used in `bunker.py`
 
-### UX — ✅ Implementado
-10. ✅ Score popups flotantes (Fase 4)
-11. ✅ Death animation con partículas (Fase 4)
-12. ✅ Parallax stars 3 capas (Fase 4)
-13. ✅ Title screen (Fase 6)
-14. ✅ Boss final nivel 5 (Fase 5)
-15. ✅ Transiciones entre niveles (Fase 4-5)
-16. ✅ Screen shake + flash al recibir daño (Fase 4-5)
-17. ✅ Variedad de balas: wiggle, fast, normal (Fase 5)
+### UX — Implemented
+10. Floating score popups (Phase 4)
+11. Death animation with particles (Phase 4)
+12. Parallax stars 3 layers (Phase 4)
+13. Title screen (Phase 6)
+14. Level 5 final boss (Phase 5)
+15. Level transitions (Phase 4-5)
+16. Screen shake + flash on damage (Phase 4-5)
+17. Bullet variety: wiggle, fast, normal (Phase 5)
 
 ### Testing
-18. Pendiente: tests de renderizado, performance, edge cases
-19. Tests algo acoplados, pero refactor ayudó
+18. Pending: render, performance, edge case tests
+19. Tests somewhat coupled, but refactor helped
 
 ---
 
 ## Roadmap
 
-### ✅ Fase 4 — Polish & Fixes (completada)
-### ✅ Fase 5 — Boss & Dificultad (completada)
-### ✅ Fase 6 — Menús & Config (completada)
-### ✅ Fase 7 — Refactor Estructural (completada)
+### Phase 4 — Polish & Fixes (completed)
+### Phase 5 — Boss & Difficulty (completed)
+### Phase 6 — Menus & Config (completed)
+### Phase 7 — Structural Refactor (completed)
 
-### ✅ Fase 8 — Gameplay Avanzado (completada)
-- [x] Sistema de combos / streak bonus — +1-99pts extra por kill, resetea al recibir daño
-- [x] Dificultad seleccionable (Easy/Normal/Hard) — cicla con LEFT/RIGHT en title
-- [x] Fix: bunkers centrados en game area
-- [x] Fix: pygame.display.flip() en TITLE state
+### Phase 8 — Advanced Gameplay (completed)
+- [x] Combo/streak system — +1-99pts extra per kill, resets on damage
+- [x] Selectable difficulty (Easy/Normal/Hard) — cycle with LEFT/RIGHT on title
+- [x] Fix: bunkers centered in game area
+- [x] Fix: pygame.display.flip() in TITLE state
 
-### ✅ Fase 9 — Refinamiento (completada)
-- [x] Extraer enemy shooting logic a función separada (`shooting.py`)
-- [x] Tests de edge cases — 23 tests nuevos
-- [x] Tests de renderizado — 8 tests: cada estado sin crash + boss/powerups/popups
-- [x] Tests de performance — 3 tests: 100 frames <2s, stress bullets, stress particles
+### Phase 9 — Refinement (completed)
+- [x] Extract enemy shooting logic to separate function (`shooting.py`)
+- [x] Edge case tests — 23 new tests
+- [x] Render tests — 8 tests: each state no crash + boss/powerups/popups
+- [x] Performance tests — 3 tests: 100 frames <2s, stress bullets, stress particles
 
 ---
 
-## Criterios de Calidad
+## Quality Criteria
 
-- Cada cambio verificado con `python3 -m pytest tests/ -v`
-- Smoke test manual: `python3 main.py` 10s sin crash
-- Commits atómicos por feature
-- Sin regresión en tests existentes
+- Each change verified with `python3 -m pytest tests/ -v`
+- Manual smoke test: `python3 main.py` 10s no crash
+- Atomic commits per feature
+- No regression on existing tests

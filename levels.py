@@ -18,61 +18,11 @@ def create_bunkers() -> list:
 
 
 def advance_level(game) -> None:
-    game.level += 1
-    game.transition_timer = 0
-    game.elapsed_time = 0
-    game.ufo = None
-    game.ufo_spawn_timer = 0
-    game.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
-    game.bunkers = create_bunkers()
-    game.powerups.empty()
-    game.powerup_spawn_cooldown = POWERUP_COOLDOWN
-    diff = DIFFICULTY_PRESETS[game.difficulty]
-    game.formation = EnemyFormation(generate_level(game.level), diff)
-    game.kamikazes.empty()
-    game.minions.empty()
-    game.player.reset(reset_lives=False)
-    if game.player.special_charge >= 1.0 and not game.player.special_used:
-        game.player.special_charge = 1.0
-    else:
-        game.player.special_charge = 0.0
-    game.player.special_used = False
-    game.player.special_active = False
-    game.boss_minion_timer = 0
-    game.auto_step_timer = 0
+    game._advance_level()
 
 
 def reset_game(game) -> None:
-    game.sound.stop_bgm()
-    game.score = 0
-    game.level = 1
-    game.state = GameState.INTRO
-    game._prev_state = GameState.INTRO
-    game.transition_timer = 2000
-    game.auto_step_timer = 0
-    game._shot_timer = 0
-    game.elapsed_time = 0
-    game.score_popups.clear()
-    game.player_bullets.empty()
-    game.enemy_bullets.empty()
-    game.particles.empty()
-    game.flash_fx.empty()
-    game.powerups.empty()
-    game.powerup_spawn_cooldown = POWERUP_COOLDOWN
-    game.streak = 0
-    game.ufo = None
-    game.ufo_spawn_timer = 0
-    game.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
-    game.boss = None
-    game.boss_shoot_timer = 0
-    game.boss_minion_timer = 0
-    game.kamikazes.empty()
-    game.minions.empty()
-    game.bunkers = create_bunkers()
-    diff = DIFFICULTY_PRESETS[game.difficulty]
-    game.player.reset()
-    game.player.lives = diff["lives"]
-    game.formation = EnemyFormation(generate_level(1), diff)
+    game._reset_game()
 
 
 def handle_transition_end(game) -> None:

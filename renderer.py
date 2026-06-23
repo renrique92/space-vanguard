@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from typing import Optional
+
 import pygame
 
 from classes import Difficulty, GameState, PowerUpType
@@ -9,81 +12,102 @@ from settings import (
 )
 
 
+@dataclass
+class SceneState:
+    state: GameState
+    level: int
+    transition_timer: int
+    player: 'Player'
+    formation: 'EnemyFormation'
+    player_bullets: pygame.sprite.Group
+    enemy_bullets: pygame.sprite.Group
+    particles: pygame.sprite.Group
+    flash_fx: pygame.sprite.Group
+    ufo: Optional['UFO']
+    bunkers: list
+    powerups: pygame.sprite.Group
+    score: int
+    high_score: int
+    lives: int
+    score_multiplier: float
+    streak: int
+    popups: list[dict]
+    boss: Optional['Boss']
+    kamikazes: pygame.sprite.Group
+    minions: pygame.sprite.Group
+    difficulty: Difficulty
+    powerup_msg: str
+    active_pu_type: Optional[PowerUpType]
+    active_pu_remaining: int
+    special_charge: float
+    special_active: bool
+
+
 class Renderer:
-    def __init__(self, screen, game_surf, screen_shake, info_panel, stars):
+    def __init__(self, screen, game_surf, screen_shake, info_panel, starfield):
         self.screen = screen
         self.game_surf = game_surf
         self.screen_shake = screen_shake
         self.info_panel = info_panel
-        self.stars = stars
+        self.starfield = starfield
         self.font_level = pygame.font.Font(None, 28)
         self.font_popup = pygame.font.Font(None, 20)
         self.workspace = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
 
-    def draw(self, state, level, transition_timer, player, formation,
-             player_bullets, enemy_bullets, particles, flash_fx,
-             ufo, bunkers, powerups, score, high_score, lives,
-             score_multiplier, streak=0,
-             powerup_msg="", active_pu_type=None, active_pu_remaining=0,
-             score_popups=None, boss=None, difficulty=Difficulty.NORMAL,
-             special_charge=0.0, special_active=False,
-             kamikazes=None, minions=None):
-        if state == GameState.TITLE:
-            self.screen.fill(BLACK)
-            sw, sh = self.screen.get_size()
-            for s in self.stars:
-                x = int(s[0] * sw / GAME_WIDTH)
-                y = int(s[1] * sh / WINDOW_HEIGHT)
-                pygame.draw.circle(self.screen, (s[2], s[2], s[2]), (x, y), s[3])
-            self._draw_title(difficulty)
-            pygame.display.flip()
+    def draw(self, scene: SceneState) -> None:
+        if scene.state == GameState.TITLE:
+            self._draw_title_screen(scene)
             return
 
         self.game_surf.fill(BLACK)
+        self.starfield.draw_on(self.game_surf)
 
-        for s in self.stars:
-            pygame.draw.circle(self.game_surf, (s[2], s[2], s[2]), (int(s[0]), int(s[1])), s[3])
-
-        if ufo and state != GameState.INTRO:
-            self.game_surf.blit(ufo.image, ufo.rect)
-        for bunker in bunkers:
+        if scene.ufo and scene.state != GameState.INTRO:
+            self.game_surf.blit(scene.ufo.image, scene.ufo.rect)
+        for bunker in scene.bunkers:
             bunker.bricks.draw(self.game_surf)
-        enemy_bullets.draw(self.game_surf)
-        player_bullets.draw(self.game_surf)
-        if kamikazes:
-            kamikazes.draw(self.game_surf)
-        if minions:
-            minions.draw(self.game_surf)
-        if state != GameState.INTRO:
-            formation.enemies.draw(self.game_surf)
-        if boss:
-            self.game_surf.blit(boss.image, boss.rect)
-        powerups.draw(self.game_surf)
-        particles.draw(self.game_surf)
-        flash_fx.draw(self.game_surf)
+        scene.enemy_bullets.draw(self.game_surf)
+        scene.player_bullets.draw(self.game_surf)
+        if scene.kamikazes:
+            scene.kamikazes.draw(self.game_surf)
+        if scene.minions:
+            scene.minions.draw(self.game_surf)
+        if scene.state != GameState.INTRO:
+            scene.formation.enemies.draw(self.game_surf)
+        if scene.boss:
+            self.game_surf.blit(scene.boss.image, scene.boss.rect)
+        scene.powerups.draw(self.game_surf)
+        scene.particles.draw(self.game_surf)
+        scene.flash_fx.draw(self.game_surf)
 
-        if score_popups:
-            for p in score_popups:
+        if scene.popups:
+            for p in scene.popups:
                 alpha = max(0, int(255 * p["timer"] / 800))
                 text = self.font_popup.render(p["text"], True, (255, 255, 255))
                 text.set_alpha(alpha)
                 self.game_surf.blit(text, (p["x"] - text.get_width() // 2, p["y"]))
-        self.game_surf.blit(player.image, player.rect)
-        self._draw_special_bar(player, special_charge, special_active)
+        self.game_surf.blit(scene.player.image, scene.player.rect)
+        self._draw_special_bar(scene.player, scene.special_charge, scene.special_active)
 
-        if special_active:
-            self._draw_beam(player)
+        if scene.special_active:
+            self._draw_beam(scene.player)
 
-        self._draw_level_indicator(level)
-        self._draw_powerup_popup(powerup_msg)
-        self._draw_powerup_indicator(active_pu_type, active_pu_remaining)
-        self._draw_boss_hp(boss)
+        self._draw_level_indicator(scene.level)
+        self._draw_powerup_popup(scene.powerup_msg)
+        self._draw_powerup_indicator(scene.active_pu_type, scene.active_pu_remaining)
+        self._draw_boss_hp(scene.boss)
 
-        if transition_timer > 0:
-            self._draw_level_transition(state, level)
+        if scene.transition_timer > 0:
+            self._draw_level_transition(scene.state, scene.level)
 
-        self._present(state, score, high_score, lives,
-                      score_multiplier, streak)
+        self._present(scene)
+
+    def _draw_title_screen(self, scene: SceneState) -> None:
+        self.screen.fill(BLACK)
+        sw, sh = self.screen.get_size()
+        self.starfield.draw_on(self.screen, sw / GAME_WIDTH, sh / WINDOW_HEIGHT)
+        self._draw_title(scene.difficulty)
+        pygame.display.flip()
 
     def _draw_powerup_popup(self, msg):
         if not msg:
@@ -139,13 +163,13 @@ class Renderer:
         bx = player.rect.centerx - bar_w // 2
         by = player.rect.bottom + 4
 
-        label = "Z" if not active else "Z"
-        if charge < 1.0 and not active:
-            label = f"Z {int(charge * 100)}%"
-        elif active:
-            label = "Z BEAM"
+        if not active:
+            if charge < 1.0:
+                label = f"Z {int(charge * 100)}%"
+            else:
+                label = "Z READY"
         else:
-            label = "Z READY"
+            label = "Z BEAM"
 
         pygame.draw.rect(self.game_surf, (40, 40, 50), (bx, by, bar_w, bar_h))
         fill_w = int(bar_w * charge)
@@ -223,8 +247,7 @@ class Renderer:
         self.screen.blit(sub, r4)
         self.screen.blit(ctrl, r5)
 
-    def _present(self, state, score, high_score, lives,
-                 score_multiplier, streak=0):
+    def _present(self, scene: SceneState) -> None:
         sx, sy = self.screen_shake.get_offset()
         sw, sh = self.screen.get_size()
         use_scale = sw != WINDOW_WIDTH or sh != WINDOW_HEIGHT
@@ -243,18 +266,18 @@ class Renderer:
         )
 
         self.info_panel.draw(
-            target, score, high_score, lives,
-            state, score_multiplier, streak,
+            target, scene.score, scene.high_score, scene.lives,
+            scene.state, scene.score_multiplier, scene.streak,
         )
 
         if use_scale:
             scaled = pygame.transform.scale(self.workspace, (sw, sh))
             self.screen.blit(scaled, (0, 0))
 
-        if state == GameState.PAUSED:
+        if scene.state == GameState.PAUSED:
             self._draw_overlay("PAUSED", "Press P to resume")
-        elif state == GameState.GAME_OVER:
-            self._draw_overlay("GAME OVER", "Press R to restart", score)
+        elif scene.state == GameState.GAME_OVER:
+            self._draw_overlay("GAME OVER", "Press R to restart", scene.score)
 
         pygame.display.flip()
 

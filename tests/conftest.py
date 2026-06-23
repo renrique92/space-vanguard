@@ -8,7 +8,7 @@ import tempfile
 import pytest
 import pygame
 
-import game as game_module
+import score as score_module
 from game import Game
 from classes import GameState
 
@@ -24,7 +24,7 @@ def _pygame_init():
 def _isolate_high_score(monkeypatch, tmp_path):
     f = tmp_path / "high_score.json"
     f.write_text("0")
-    monkeypatch.setattr(game_module, "HIGH_SCORE_FILE", str(f))
+    monkeypatch.setattr(score_module, "HIGH_SCORE_FILE", str(f))
     yield
 
 

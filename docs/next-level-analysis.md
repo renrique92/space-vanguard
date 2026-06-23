@@ -1,95 +1,95 @@
-# Próximos Pasos — Space Vanguard
+# Next Steps — Space Vanguard
 
-> Analizado: 23 Jun 2026
-> Contexto: juego completo con 5 niveles, 7 power-ups, boss, UFO, bunkers, streak, dificultad ajustable, ataque especial, sonido sintetizado, 133 tests.
+> Analyzed: 23 Jun 2026
+> Context: complete game with 5 levels, 7 power-ups, boss, UFO, bunkers, streak, adjustable difficulty, special attack, synthesized sound, 133 tests.
 
 ---
 
-## ✅ Estado actual (lo que ya tenemos)
+## ✅ Current state (what we already have)
 
-- 5 niveles con formaciones (grid 2D de enemigos)
+- 5 levels with formations (2D enemy grid)
 - 7 power-ups: Spread, Shield, Speed, Rapid, Pierce, Score, Slowmo
-- UFO con spawn aleatorio y barrido de puntos
-- Boss nivel 5 con disparos
-- Bunkers destructibles (grid de bricks)
-- Sistema de streak/combo (bonificaciones por kills consecutivos)
-- Selección de dificultad: Easy / Normal / Hard
-- Ataque especial (Z): beam penetrante que carga ~20s
-- Fondo parallax stars (3 capas)
-- Score popups, screen shake, partículas de explosión
-- Máquina de estados: TITLE → INTRO → PLAYING → PAUSED → GAME_OVER / WIN
-- 12 sonidos sintetizados + BGM (22050 Hz, 16-bit mono)
-- Panel de info lateral (score, high score, vidas, streak, power-up, barra special)
-- Persistencia: high_score.json
-- 133 tests pytest en headless
-- Fullscreen (F), mute (M), auto-pause al perder foco
-- Score multiplier por tiempo y power-up Score
+- UFO with random spawn and score sweep
+- Level 5 boss with shooting patterns
+- Destructible bunkers (brick grid)
+- Streak/combo system (bonus points for consecutive kills)
+- Difficulty selection: Easy / Normal / Hard
+- Special attack (Z): piercing beam that charges ~20s
+- Parallax star background (3 layers)
+- Score popups, screen shake, explosion particles
+- State machine: TITLE → INTRO → PLAYING → PAUSED → GAME_OVER / WIN
+- 12 synthesized sounds + BGM (22050 Hz, 16-bit mono)
+- Side info panel (score, high score, lives, streak, power-up, special bar)
+- Persistence: high_score.json
+- 133 pytest tests in headless mode
+- Fullscreen (F), mute (M), auto-pause on focus loss
+- Score multiplier by time and Score power-up
 
 ---
 
-## 🔮 Próximas direcciones
+## Next directions
 
-### 1. Variedad de enemigos (prioridad alta)
+### 1. Enemy variety (high priority)
 
-Tipos con comportamientos distintos dentro de la formación:
+Types with distinct behaviors inside the formation:
 
-| Tipo | Comportamiento |
-|------|---------------|
-| **Shooter** | Dispara hacia abajo, no al azar |
-| **Kamikaze** | Se desprende de la formación y va directo al player |
-| **Escudo** | 2 hits para matarlo |
-| **Zigzag** | Se mueve sinusoidal al bajar |
-| **Rápido** | Mayor velocidad horizontal |
+| Type | Behavior |
+|------|----------|
+| **Shooter** | Shoots downward, not randomly |
+| **Kamikaze** | Detaches from formation, heads to player |
+| **Shield** | 2 hits to kill |
+| **Zigzag** | Sinusoidal movement while descending |
+| **Fast** | Higher horizontal speed |
 
-**Impacto:** Cambia la estrategia de juego, el玩家 no solo dispara al azar.
-**Archivos afectados:** `sprites/enemy.py`, `sprites/enemy_types.py` (nuevo), `settings.py`
-**Tests:** ~10-15 tests nuevos
+**Impact:** Changes player strategy, no random shooting.
+**Affected files:** `sprites/enemy.py`, `sprites/enemy_types.py` (new), `settings.py`
+**Tests:** ~10-15 new tests
 
-### 2. Fases de boss (prioridad alta)
+### 2. Boss phases (high priority)
 
-El boss del nivel 5 cambia de fase al 50% HP:
+Level 5 boss changes phase at 50% HP:
 
-| Fase | Comportamiento |
-|------|---------------|
-| **Fase 1** | Dispara 1 bala cada ~800ms, movimiento lateral |
-| **Fase 2** (≤50% HP) | Dispara 3 balas en abanico, se mueve más rápido, spawn de minions |
+| Phase | Behavior |
+|-------|----------|
+| **Phase 1** | Shoots 1 bullet every ~800ms, lateral movement |
+| **Phase 2** (≤50% HP) | Shoots 3 bullets in fan, faster movement, spawns minions |
 
-**Impacto:** Hace que la pelea final sea memorable.
-**Archivos afectados:** `sprites/boss.py`, `settings.py`
+**Impact:** Makes the final fight memorable.
+**Affected files:** `sprites/boss.py`, `settings.py`
 **Tests:** ~5 tests
 
-### 3. Sistema de logros (prioridad media)
+### 3. Achievement system (medium priority)
 
-Logros persistentes en `achievements.json`:
+Persistent achievements in `achievements.json`:
 
-| Logro | Condición |
-|-------|-----------|
-| "First Blood" | Matar tu primer enemigo |
-| "Centurion" | Llegar a streak 100 |
-| "Special Delivery" | Matar un enemigo con el beam especial |
-| "Invincible" | Pasar un nivel sin perder vida |
-| "Boss Slayer" | Matar al boss sin recibir daño |
-| "Collector" | Agarrar los 7 power-ups en una partida |
-| "Speedrunner" | Completar los 5 niveles en < X tiempo |
+| Achievement | Condition |
+|-------------|-----------|
+| "First Blood" | Kill your first enemy |
+| "Centurion" | Reach streak 100 |
+| "Special Delivery" | Kill an enemy with the special beam |
+| "Invincible" | Complete a level without losing a life |
+| "Boss Slayer" | Kill the boss without taking damage |
+| "Collector" | Collect all 7 power-ups in one game |
+| "Speedrunner" | Complete all 5 levels in < X time |
 
-**Impacto:** Rejugabilidad, motivación extra.
-**Archivos afectados:** `achievements.py` (nuevo), `game.py`, `ui/info_panel.py`
+**Impact:** Replayability, extra motivation.
+**Affected files:** `achievements.py` (new), `game.py`, `ui/info_panel.py`
 **Tests:** ~8 tests
 
-### 4. Animaciones (prioridad media)
+### 4. Animations (medium priority)
 
-- **Muerte del player:** explosión más elaborada con partículas que se expanden
-- **Respawn:** efecto de "materialización" del ship
-- **Transición entre niveles:** animación de barrido o fade
-- **Power-up pickup:** destello / anillo expansivo
+- **Player death:** more elaborate explosion with expanding particles
+- **Respawn:** ship "materialization" effect
+- **Level transition:** wipe or fade animation
+- **Power-up pickup:** flash / expanding ring
 
-**Impacto:** Polish visual, el juego se siente más profesional.
-**Archivos afectados:** `effects.py`, `renderer.py`, `game.py`
+**Impact:** Visual polish, game feels more professional.
+**Affected files:** `effects.py`, `renderer.py`, `game.py`
 **Tests:** ~3 tests (render)
 
-### 5. Leaderboard local (prioridad media)
+### 5. Local leaderboard (medium priority)
 
-Top 10 scores con nombre (input de 3 letras estilo arcade):
+Top 10 scores with name (3-letter arcade-style input):
 
 ```json
 [
@@ -98,68 +98,68 @@ Top 10 scores con nombre (input de 3 letras estilo arcade):
 ]
 ```
 
-**Impacto:** Sensación de progreso a largo plazo.
-**Archivos afectados:** `leaderboard.py` (nuevo), `game.py`, `renderer.py`
+**Impact:** Long-term progress feeling.
+**Affected files:** `leaderboard.py` (new), `game.py`, `renderer.py`
 **Tests:** ~5 tests
 
-### 6. Persistencia de preferencias (prioridad baja-media)
+### 6. Preference persistence (low-medium priority)
 
-Guardar en `prefs.json`: dificultad seleccionada, mute, fullscreen.
+Save in `prefs.json`: selected difficulty, mute, fullscreen.
 
-**Impacto:** UX, el jugador no reconfigura cada vez.
-**Archivos afectados:** `preferences.py` (nuevo), `game.py`
+**Impact:** UX, player doesn't reconfigure every time.
+**Affected files:** `preferences.py` (new), `game.py`
 **Tests:** ~3 tests
 
-### 7. Soporte gamepad (prioridad baja)
+### 7. Gamepad support (low priority)
 
-Usar `pygame.joystick` para movimiento y disparo.
+Use `pygame.joystick` for movement and shooting.
 
-**Archivos afectados:** `game.py`
+**Affected files:** `game.py`
 **Tests:** ~2 tests (mock)
 
-### 8. Endless mode (prioridad baja)
+### 8. Endless mode (low priority)
 
-Después del nivel 5, el juego continúa con dificultad creciente infinita. Formaciones generadas proceduralmente.
+After level 5, the game continues with infinite increasing difficulty. Procedurally generated formations.
 
-**Archivos afectados:** `game.py`, `levels.py`, `settings.py`
+**Affected files:** `game.py`, `levels.py`, `settings.py`
 **Tests:** ~5 tests
 
-### 9. Opciones de audio (prioridad baja)
+### 9. Audio options (low priority)
 
-Sliders separados para SFX y música en el title screen.
+Separate sliders for SFX and music on the title screen.
 
-**Archivos afectados:** `game.py`, `sounds.py`, `renderer.py`
+**Affected files:** `game.py`, `sounds.py`, `renderer.py`
 **Tests:** ~2 tests
 
-### 10. Tutorial / How to Play (prioridad baja)
+### 10. Tutorial / How to Play (low priority)
 
-Pantalla con controles antes de empezar.
+Controls screen before starting.
 
-**Archivos afectados:** `game.py`, `renderer.py`
-**Tests:** ninguno
-
----
-
-## 📊 Matriz de decisión
-
-| Feature | Esfuerzo | Impacto jugable | Complejidad técnica |
-|---------|----------|----------------|-------------------|
-| Variedad enemigos | Alta | Muy alto | Media |
-| Fases de boss | Media | Alto | Baja |
-| Logros | Media | Medio | Baja |
-| Animaciones | Alta | Alto | Media |
-| Leaderboard | Media | Medio | Baja |
-| Preferencias | Baja | Bajo | Baja |
-| Gamepad | Baja | Medio | Baja |
-| Endless mode | Alta | Alto | Media |
-| Audio sliders | Baja | Bajo | Baja |
-| Tutorial | Baja | Bajo | Baja |
+**Affected files:** `game.py`, `renderer.py`
+**Tests:** none
 
 ---
 
-## 🧠 Recomendación
+## Decision matrix
 
-**Batch 1** (más impacto): Variedad de enemigos + Fases de boss
-**Batch 2** (polish): Logros + Leaderboard + Preferencias
-**Batch 3** (calidad de vida): Gamepad + Audio sliders
-**Batch 4** (contenido extra): Endless mode + Tutorial
+| Feature | Effort | Gameplay impact | Technical complexity |
+|---------|--------|-----------------|---------------------|
+| Enemy variety | High | Very high | Medium |
+| Boss phases | Medium | High | Low |
+| Achievements | Medium | Medium | Low |
+| Animations | High | High | Medium |
+| Leaderboard | Medium | Medium | Low |
+| Preferences | Low | Low | Low |
+| Gamepad | Low | Medium | Low |
+| Endless mode | High | High | Medium |
+| Audio sliders | Low | Low | Low |
+| Tutorial | Low | Low | Low |
+
+---
+
+## Recommendation
+
+**Batch 1** (most impact): Enemy variety + Boss phases
+**Batch 2** (polish): Achievements + Leaderboard + Preferences
+**Batch 3** (quality of life): Gamepad + Audio sliders
+**Batch 4** (extra content): Endless mode + Tutorial

@@ -1,6 +1,6 @@
 # Space Vanguard — Web Deploy Plan (Pygbag)
 
-> Fecha: 23 Jun 2026
+> Date: 23 Jun 2026
 > Target: juego jugable en navegador, hosting gratuito
 
 ---

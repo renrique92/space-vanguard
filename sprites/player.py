@@ -1,4 +1,7 @@
+from dataclasses import dataclass
+
 import pygame
+
 from classes import PowerUpType
 from settings import (
     PLAYER_W, PLAYER_H, PLAYER_SPEED, PLAYER_LIVES,
@@ -12,6 +15,28 @@ TIMED_TYPES = [
     PowerUpType.SPREAD, PowerUpType.SHIELD, PowerUpType.SPEED,
     PowerUpType.RAPID, PowerUpType.PIERCE, PowerUpType.SCORE, PowerUpType.SLOWMO,
 ]
+
+
+@dataclass
+class TimedEffects:
+    spread: int = 0
+    shield: int = 0
+    speed: int = 0
+    rapid: int = 0
+    pierce: int = 0
+    score: int = 0
+    slowmo: int = 0
+
+
+POWERUP_FIELD_MAP = {
+    PowerUpType.SPREAD: "spread",
+    PowerUpType.SHIELD: "shield",
+    PowerUpType.SPEED: "speed",
+    PowerUpType.RAPID: "rapid",
+    PowerUpType.PIERCE: "pierce",
+    PowerUpType.SCORE: "score",
+    PowerUpType.SLOWMO: "slowmo",
+}
 
 
 class Player(pygame.sprite.Sprite):
@@ -39,13 +64,9 @@ class Player(pygame.sprite.Sprite):
         self.special_active = False
         self.special_used = False
         self.special_tick_timer = 0
-        self._clear_timers()
+        self.effects = TimedEffects()
         self._draw_ship()
         self.image.set_alpha(255)
-
-    def _clear_timers(self):
-        for pt in TIMED_TYPES:
-            setattr(self, f"{pt.name.lower()}_timer", 0)
 
     def update(self, *args):
         dt = args[0] if args else 16
@@ -59,21 +80,26 @@ class Player(pygame.sprite.Sprite):
             else:
                 self.image.set_alpha(255)
 
-        for pt in TIMED_TYPES:
-            timer = getattr(self, f"{pt.name.lower()}_timer", 0)
-            if timer > 0:
-                setattr(self, f"{pt.name.lower()}_timer", timer - dt)
+        self.effects.spread = max(0, self.effects.spread - dt)
+        self.effects.shield = max(0, self.effects.shield - dt)
+        self.effects.speed = max(0, self.effects.speed - dt)
+        self.effects.rapid = max(0, self.effects.rapid - dt)
+        self.effects.pierce = max(0, self.effects.pierce - dt)
+        self.effects.score = max(0, self.effects.score - dt)
+        self.effects.slowmo = max(0, self.effects.slowmo - dt)
 
-        if self.speed_timer > 0:
+        if self.effects.speed > 0:
             self.speed = PLAYER_SPEED * 2
         else:
             self.speed = PLAYER_SPEED
 
-        for pt in TIMED_TYPES:
-            timer = getattr(self, f"{pt.name.lower()}_timer", 0)
-            if timer > 0 and pt in POWERUP_SHIP_COLORS:
-                self._draw_ship(*POWERUP_SHIP_COLORS[pt])
-                break
+        for field_name in POWERUP_FIELD_MAP.values():
+            timer = getattr(self.effects, field_name, 0)
+            if timer > 0:
+                pt = next(k for k, v in POWERUP_FIELD_MAP.items() if v == field_name)
+                if pt in POWERUP_SHIP_COLORS:
+                    self._draw_ship(*POWERUP_SHIP_COLORS[pt])
+                    break
         else:
             if not self.invulnerable:
                 self._draw_ship()
@@ -86,8 +112,8 @@ class Player(pygame.sprite.Sprite):
         self.rect.clamp_ip(GAME_AREA)
 
     def take_hit(self):
-        if self.shield_timer > 0:
-            self.shield_timer = 0
+        if self.effects.shield > 0:
+            self.effects.shield = 0
             return
         self.lives -= 1
         self.special_charge = 0.0
@@ -97,10 +123,12 @@ class Player(pygame.sprite.Sprite):
         self.rect.midbottom = (GAME_WIDTH // 2, WINDOW_HEIGHT - PLAYER_BOTTOM_MARGIN)
 
     def activate_powerup(self, power_type):
-        self._clear_timers()
+        self.effects = TimedEffects()
         dur = POWERUP_DURATIONS.get(power_type, 0)
         if dur > 0:
-            setattr(self, f"{power_type.name.lower()}_timer", dur)
+            field = POWERUP_FIELD_MAP.get(power_type)
+            if field:
+                setattr(self.effects, field, dur)
         if power_type in POWERUP_SHIP_COLORS:
             self._draw_ship(*POWERUP_SHIP_COLORS[power_type])
 
