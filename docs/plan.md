@@ -44,9 +44,15 @@
 ### ✅ Fase 6 — Menús & Config (completada)
 ### ✅ Fase 7 — Refactor Estructural (completada)
 
-### Fase 8 — Gameplay Avanzado (en progreso)
+### ✅ Fase 8 — Gameplay Avanzado (completada)
 - [x] Sistema de combos / streak bonus — +1-99pts extra por kill, resetea al recibir daño
-- [ ] Dificultad seleccionable (Easy/Normal/Hard)
+- [x] Dificultad seleccionable (Easy/Normal/Hard) — cicla con LEFT/RIGHT en title
+- [x] Fix: bunkers centrados en game area
+- [x] Fix: pygame.display.flip() en TITLE state
+
+### Fase 9 — Refinamiento (en progreso)
+- [x] Extraer enemy shooting logic a función separada (`shooting.py`)
+- [ ] Tests de renderizado, performance, edge cases
 
 ---
 

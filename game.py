@@ -15,6 +15,7 @@ from collision import (
     handle_powerup_collection,
     handle_ufo_collision,
 )
+from shooting import handle_enemy_shooting
 from levels import (
     advance_level, create_bunkers, handle_transition_end, reset_game,
 )
@@ -217,30 +218,7 @@ class Game:
             self.formation.auto_step_down()
             self.auto_step_timer = 0
 
-        if self.player.slowmo_timer > 0:
-            if random.random() >= SLOWMO_RATE:
-                result = None
-            else:
-                result = self.formation.try_shoot()
-        else:
-            result = self.formation.try_shoot()
-        if result:
-            x, y = result
-            r = random.random()
-            if self.level >= 3 and r < 0.25:
-                self.enemy_bullets.add(
-                    Bullet(x, y, ENEMY_BULLET_SPEED + 3, is_player=False)
-                )
-            elif self.level >= 2 and r < 0.35:
-                self.enemy_bullets.add(
-                    Bullet(x, y, ENEMY_BULLET_SPEED, is_player=False,
-                           wiggle_amp=1.5, wiggle_freq=0.08)
-                )
-            else:
-                self.enemy_bullets.add(
-                    Bullet(x, y, ENEMY_BULLET_SPEED, is_player=False)
-                )
-            self.sound.play("enemy_shoot")
+        handle_enemy_shooting(self)
 
         self.player_bullets.update()
         self.enemy_bullets.update()
