@@ -36,7 +36,9 @@ def handle_enemy_collisions(game) -> None:
         bullet.has_hit = True
         for enemy in enemies:
             game.shots_hit += 1
-            pts = int(enemy.points * mult)
+            game.streak += 1
+            streak_bonus = min(game.streak, 99)
+            pts = int(enemy.points * mult) + streak_bonus
             game.score += pts
             game.score_popups.append({
                 "text": f"+{pts}",
@@ -113,6 +115,7 @@ def handle_player_hit(game) -> None:
             (0, 200, 255),
         )
     )
+    game.streak = 0
     game.sound.play("player_hit")
     game.screen_shake.trigger(8, 200)
     if game.player.lives <= 0:

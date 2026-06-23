@@ -36,12 +36,15 @@ class InfoPanel:
 
         self.acc_label_y = 535
         self.acc_value_y = 565
-        self.div5_y = 595
+        self.div5_y = 590
 
-        self.controls_y = 610
+        self.streak_label_y = 600
+        self.streak_value_y = 622
+
+        self.controls_y = 645
         self.cx = cx
 
-    def draw(self, screen, score, high_score, lives, state, multiplier, accuracy):
+    def draw(self, screen, score, high_score, lives, state, multiplier, accuracy, streak=0):
         screen.fill(DARK_BG, PANEL_AREA)
 
         t1 = self.font_title.render("SPACE", True, TITLE_COLOR)
@@ -86,6 +89,12 @@ class InfoPanel:
         acc_text = self.font_value.render(f"{accuracy:.0f}%", True, acc_color)
         acc_rect = acc_text.get_rect(center=(self.cx, self.acc_value_y))
         screen.blit(acc_text, acc_rect)
+
+        self._label(screen, "STREAK", self.font_score, self.cx, self.streak_label_y)
+        streak_color = TEXT_ACCENT if streak >= 10 else WHITE
+        streak_text = self.font_value.render(f"{streak}", True, streak_color)
+        streak_rect = streak_text.get_rect(center=(self.cx, self.streak_value_y))
+        screen.blit(streak_text, streak_rect)
 
         controls = [
             ("LEFT RIGHT", "MOVE"),

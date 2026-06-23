@@ -90,6 +90,7 @@ class Game:
         self.powerup_msg_timer = 0
         self.powerup_spawn_cooldown = POWERUP_COOLDOWN
 
+        self.streak = 0
         self.ufo = None
         self.ufo_spawn_timer = 0
         self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
@@ -340,7 +341,7 @@ class Game:
             self.particles, self.flash_fx,
             self.ufo, self.bunkers, self.powerups,
             self.score, self.high_score, self.player.lives,
-            self.score_multiplier, self.accuracy,
+            self.score_multiplier, self.accuracy, self.streak,
             powerup_msg=self.powerup_msg,
             active_pu_type=active_pu_type,
             active_pu_remaining=active_pu_remaining,

@@ -174,23 +174,22 @@ POWERUP_SYMBOLS = {
     PowerUpType.SCORE: "*",
     PowerUpType.SLOWMO: "Z",
 }
-TP = PowerUpType
 POWERUP_DURATIONS = {
-    TP.SPREAD: 8000,
-    TP.SHIELD: 8000,
-    TP.SPEED: 8000,
-    TP.RAPID: 8000,
-    TP.PIERCE: 8000,
-    TP.SCORE: 10000,
-    TP.SLOWMO: 6000,
+    PowerUpType.SPREAD: 8000,
+    PowerUpType.SHIELD: 8000,
+    PowerUpType.SPEED: 8000,
+    PowerUpType.RAPID: 8000,
+    PowerUpType.PIERCE: 8000,
+    PowerUpType.SCORE: 10000,
+    PowerUpType.SLOWMO: 6000,
 }
 POWERUP_SHIP_COLORS = {
-    TP.SPREAD: (CYAN, (0, 180, 180)),
-    TP.SHIELD: ((100, 255, 100), (50, 180, 50)),
-    TP.SPEED: (YELLOW, ORANGE),
-    TP.RAPID: ((255, 50, 200), (180, 30, 140)),
-    TP.PIERCE: ((255, 150, 200), (200, 80, 140)),
-    TP.SCORE: ((255, 215, 0), (180, 150, 0)),
-    TP.SLOWMO: ((180, 50, 200), (130, 30, 150)),
+    PowerUpType.SPREAD: (CYAN, (0, 180, 180)),
+    PowerUpType.SHIELD: ((100, 255, 100), (50, 180, 50)),
+    PowerUpType.SPEED: (YELLOW, ORANGE),
+    PowerUpType.RAPID: ((255, 50, 200), (180, 30, 140)),
+    PowerUpType.PIERCE: ((255, 150, 200), (200, 80, 140)),
+    PowerUpType.SCORE: ((255, 215, 0), (180, 150, 0)),
+    PowerUpType.SLOWMO: ((180, 50, 200), (130, 30, 150)),
 }
 

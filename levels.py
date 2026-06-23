@@ -49,6 +49,7 @@ def reset_game(game) -> None:
     game.flash_fx.empty()
     game.powerups.empty()
     game.powerup_spawn_cooldown = POWERUP_COOLDOWN
+    game.streak = 0
     game.ufo = None
     game.ufo_spawn_timer = 0
     game.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
