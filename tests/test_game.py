@@ -2,6 +2,7 @@ import pygame
 import pytest
 
 from game import Game
+from levels import advance_level, reset_game
 from classes import GameState, PowerUpType
 from sprites.bullet import Bullet
 from sprites.enemy import Enemy, EnemyFormation
@@ -70,22 +71,22 @@ class TestLevelTransition:
 
     def test_advance_level_increases_level(self, game):
         lvl = game.level
-        game._advance_level()
+        advance_level(game)
         assert game.level == lvl + 1
 
     def test_advance_level_resets_elapsed_time(self, game):
         game.elapsed_time = 5000
-        game._advance_level()
+        advance_level(game)
         assert game.elapsed_time == 0
 
     def test_advance_level_new_formation(self, game):
         old_formation = game.formation
-        game._advance_level()
+        advance_level(game)
         assert game.formation is not old_formation
 
     def test_advance_level_preserves_lives(self, game):
         game.player.lives = 1
-        game._advance_level()
+        advance_level(game)
         assert game.player.lives == 1
 
 
@@ -301,7 +302,7 @@ class TestStateMachine:
 
     def test_reset_clears_state(self, game):
         game.state = GameState.GAME_OVER
-        game._reset()
+        reset_game(game)
         assert game.state == GameState.INTRO
         assert game.score == 0
         assert game.level == 1
@@ -424,14 +425,14 @@ class TestUFO:
 
     def test_ufo_reset_on_level_advance(self, game):
         game.ufo = object()
-        game._advance_level()
+        advance_level(game)
         assert game.ufo is None
         assert game.ufo_spawn_timer == 0
 
     def test_ufo_reset_on_game_reset(self, game):
         game.ufo = object()
         game.state = GameState.GAME_OVER
-        game._reset()
+        reset_game(game)
         assert game.ufo is None
         assert game.ufo_spawn_timer == 0
 
@@ -483,13 +484,13 @@ class TestBunker:
 
     def test_bunker_reset_on_level_advance(self, game):
         old = game.bunkers
-        game._advance_level()
+        advance_level(game)
         assert game.bunkers is not old
         assert len(game.bunkers) == BUNKER_COUNT
 
     def test_bunker_reset_on_game_reset(self, game):
         game.bunkers = []
-        game._reset()
+        reset_game(game)
         assert len(game.bunkers) == BUNKER_COUNT
 
     def test_bunker_bricks_positioned_correctly(self, game):
@@ -517,7 +518,7 @@ class TestBGM:
 
     def test_bgm_stops_on_reset(self, game):
         game.sound.play_bgm()
-        game._reset()
+        reset_game(game)
         # no crash
 
     def test_bgm_starts_on_intro_end(self, game):
@@ -591,12 +592,12 @@ class TestPowerUp:
 
     def test_powerup_cleared_on_reset(self, game):
         game.powerups.add(PowerUp(200, 200, PowerUpType.SPEED))
-        game._reset()
+        reset_game(game)
         assert len(game.powerups) == 0
 
     def test_powerup_cleared_on_advance_level(self, game):
         game.powerups.add(PowerUp(200, 200, PowerUpType.SPEED))
-        game._advance_level()
+        advance_level(game)
         assert len(game.powerups) == 0
 
     def test_shield_absorbs_one_hit(self, game):

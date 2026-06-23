@@ -14,9 +14,11 @@ from collision import (
     handle_powerup_collection,
     handle_ufo_collision,
 )
+from levels import (
+    advance_level, create_bunkers, handle_transition_end, reset_game,
+)
 from settings import (
-    BULLET_W, BUNKER_COUNT,
-    ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, LEVELS,
+    BULLET_W, ENEMY_BULLET_SPEED, FPS, GAME_WIDTH, LEVELS,
     MAX_LIVES, MAX_PLAYER_BULLETS, PLAYER_BULLET_H,
     PLAYER_BULLET_SPEED, POWERUP_COOLDOWN,
     SCORE_MULT_START, SCORE_MULT_DECAY,
@@ -26,7 +28,6 @@ from settings import (
 from sounds import SoundManager
 from effects import ScreenShake, MuzzleFlash
 from sprites.bullet import Bullet
-from sprites.bunker import Bunker
 from sprites.enemy import EnemyFormation
 from sprites.player import Player
 from sprites.ufo import UFO
@@ -95,7 +96,7 @@ class Game:
         self.boss = None
         self.boss_shoot_timer = 0
 
-        self.bunkers = self._create_bunkers()
+        self.bunkers = create_bunkers()
 
         self.game_surf = pygame.Surface((GAME_WIDTH, WINDOW_HEIGHT))
         self.renderer = Renderer(
@@ -132,7 +133,7 @@ class Game:
                         self._prev_state = self.state
                         self.state = GameState.PAUSED
                 elif event.key == pygame.K_r and self.state in (GameState.GAME_OVER, GameState.WIN):
-                    self._reset()
+                    reset_game(self)
                 elif event.key == pygame.K_SPACE and self.state == GameState.TITLE:
                     self.state = GameState.INTRO
                     self.transition_timer = 2000
@@ -191,11 +192,7 @@ class Game:
             self.particles.update(dt)
             self.flash_fx.update(dt)
             if self.transition_timer <= 0:
-                if self.state == GameState.INTRO:
-                    self.state = GameState.PLAYING
-                    self.sound.play_bgm()
-                else:
-                    self._advance_level()
+                handle_transition_end(self)
             return
 
         self.screen_shake.update(dt)
@@ -351,11 +348,6 @@ class Game:
             boss=self.boss,
         )
 
-    @staticmethod
-    def _create_bunkers() -> list:
-        spacing = GAME_WIDTH // (BUNKER_COUNT + 1)
-        return [Bunker(spacing * i) for i in range(1, BUNKER_COUNT + 1)]
-
     def _load_high_score(self) -> int:
         try:
             with open(HIGH_SCORE_FILE) as f:
@@ -369,53 +361,10 @@ class Game:
             with open(HIGH_SCORE_FILE, "w") as f:
                 json.dump(self.high_score, f)
 
-    def _reset(self) -> None:
-        self.sound.stop_bgm()
-        self.score = 0
-        self.level = 1
-        self.state = GameState.INTRO
-        self._prev_state = GameState.INTRO
-        self.transition_timer = 2000
-        self.auto_step_timer = 0
-        self._shot_timer = 0
-        self.elapsed_time = 0
-        self.shots_fired = 0
-        self.shots_hit = 0
-        self._pending_shots.clear()
-        self.score_popups.clear()
-        self.player_bullets.empty()
-        self.enemy_bullets.empty()
-        self.particles.empty()
-        self.flash_fx.empty()
-        self.powerups.empty()
-        self.powerup_spawn_cooldown = POWERUP_COOLDOWN
-        self.ufo = None
-        self.ufo_spawn_timer = 0
-        self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
-        self.boss = None
-        self.boss_shoot_timer = 0
-        self.bunkers = self._create_bunkers()
-        self.player.reset()
-        self.formation = EnemyFormation(LEVELS[0])
-
     def _resolve_shots(self) -> None:
         dead = [s for s in self._pending_shots if not s.alive()]
         for s in dead:
             self.shots_fired += 1
             self._pending_shots.remove(s)
-
-    def _advance_level(self) -> None:
-        self.level += 1
-        self.transition_timer = 0
-        self.elapsed_time = 0
-        self.ufo = None
-        self.ufo_spawn_timer = 0
-        self.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
-        self.bunkers = self._create_bunkers()
-        self.powerups.empty()
-        self.powerup_spawn_cooldown = POWERUP_COOLDOWN
-        self.formation = EnemyFormation(LEVELS[self.level - 1])
-        self.player.reset(reset_lives=False)
-        self.auto_step_timer = 0
 
 
