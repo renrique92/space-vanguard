@@ -29,8 +29,6 @@ class TestInit:
         assert game.player.lives == PLAYER_LIVES
         assert game.running is True
         assert game.score == 0
-        assert game.shots_fired == 0
-        assert game.shots_hit == 0
 
     def test_high_score_loaded(self, game):
         assert isinstance(game.high_score, int)
@@ -220,7 +218,6 @@ class TestCollision:
         game.formation.enemies.empty()
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
 
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
@@ -228,13 +225,11 @@ class TestCollision:
         game._update(16)
 
         assert not enemy.alive()
-        assert game.shots_hit == 1
 
     def test_bullet_hit_adds_score(self, game):
         score_before = game.score
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
         game._update(16)
@@ -262,34 +257,6 @@ class TestScore:
     def test_multiplier_floor(self, game):
         game.elapsed_time = 999999
         assert game.score_multiplier == pytest.approx(SCORE_MULT_MIN)
-
-    def test_accuracy_initially_100(self, game):
-        assert game.accuracy == pytest.approx(100.0)
-
-    def test_accuracy_after_miss(self, game):
-        game.shots_fired = 1
-        game.shots_hit = 0
-        assert game.accuracy == pytest.approx(0.0)
-
-    def test_accuracy_after_hit(self, game):
-        game.shots_fired = 2
-        game.shots_hit = 1
-        assert game.accuracy == pytest.approx(50.0)
-
-    def test_resolve_shots_counts_bullets(self, game):
-        bullet = Bullet(100, 100, -9, is_player=True)
-        game._pending_shots.add(bullet)
-        bullet.kill()
-        game._resolve_shots()
-        assert game.shots_fired == 1
-
-    def test_resolve_shots_ignores_alive_bullets(self, game):
-        bullet = Bullet(100, 100, -9, is_player=True)
-        game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
-        game._resolve_shots()
-        assert game.shots_fired == 0
-
 
 class TestStateMachine:
     def test_game_over_on_zero_lives(self, game):
@@ -327,11 +294,6 @@ class TestStateMachine:
         game.formation.enemies.empty()
         game._update(16)
         assert game.transition_timer > 0
-
-    def test_resolve_shots_empty_no_error(self, game):
-        game._pending_shots.clear()
-        game._resolve_shots()
-        assert game.shots_fired == 0
 
     def test_pause_toggle(self, game):
         assert game.state == GameState.PLAYING
@@ -421,7 +383,6 @@ class TestUFO:
         score_before = game.score
         bullet = Bullet(u.rect.centerx, u.rect.top, -9, is_player=True)
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
         game._update_ufo(16)
         assert game.score > score_before
         assert game.ufo is None
@@ -550,7 +511,6 @@ class TestPowerUp:
             200, 220, -PLAYER_BULLET_SPEED, is_player=True
         )
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
         game._update(16)
         assert len(game.formation.enemies) == 0
 
@@ -717,7 +677,6 @@ class TestPowerUp:
             200, 220, -PLAYER_BULLET_SPEED, is_player=True
         )
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
         game.player.pierce_timer = 1000
         game._update(16)
         assert bullet.alive()
@@ -733,7 +692,6 @@ class TestPowerUp:
             200, 220, -PLAYER_BULLET_SPEED, is_player=True
         )
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
         game.player.pierce_timer = 0
         game._update(16)
         assert not bullet.alive()
@@ -831,7 +789,6 @@ class TestStreak:
         game.formation.enemies.empty()
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
         game._update(16)
@@ -863,7 +820,6 @@ class TestStreak:
         game.formation.enemies.empty()
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
         score_before = game.score
@@ -877,7 +833,6 @@ class TestStreak:
         game.formation.enemies.empty()
         bullet = Bullet(200, 200, -9, is_player=True)
         game.player_bullets.add(bullet)
-        game._pending_shots.add(bullet)
         enemy = Enemy(200, 200, (255, 0, 0), 30)
         game.formation.enemies.add(enemy)
         score_before = game.score
@@ -885,6 +840,23 @@ class TestStreak:
         delta = game.score - score_before
         assert delta >= 99
         assert delta < 200
+
+    def test_miss_resets_streak(self, game):
+        game.streak = 10
+        bullet = Bullet(100, -30, -9, is_player=True)
+        game.player_bullets.add(bullet)
+        game._update(16)
+        assert game.streak == 0
+
+    def test_hit_preserves_streak(self, game):
+        game.streak = 10
+        game.formation.enemies.empty()
+        bullet = Bullet(200, 200, -9, is_player=True)
+        game.player_bullets.add(bullet)
+        enemy = Enemy(200, 200, (255, 0, 0), 30)
+        game.formation.enemies.add(enemy)
+        game._update(16)
+        assert game.streak == 11
 
 
 class TestBoss:

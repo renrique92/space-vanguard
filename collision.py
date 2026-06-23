@@ -35,7 +35,6 @@ def handle_enemy_collisions(game) -> None:
     for bullet, enemies in hits.items():
         bullet.has_hit = True
         for enemy in enemies:
-            game.shots_hit += 1
             game.streak += 1
             streak_bonus = min(game.streak, 99)
             pts = int(enemy.points * mult) + streak_bonus
@@ -71,7 +70,7 @@ def handle_boss_collisions(game) -> None:
             continue
         if bullet.rect.colliderect(game.boss.rect):
             bullet.kill()
-            game.shots_hit += 1
+            bullet.has_hit = True
             game.boss.take_hit()
             game.particles.add(
                 spawn_explosion(
@@ -135,7 +134,6 @@ def handle_ufo_collision(game) -> bool:
     bullet.has_hit = True
     pts = game.ufo.points
     game.score += pts
-    game.shots_hit += 1
     game.score_popups.append({
         "text": f"+{pts}",
         "x": game.ufo.rect.centerx,

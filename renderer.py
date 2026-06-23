@@ -23,7 +23,7 @@ class Renderer:
     def draw(self, state, level, transition_timer, player, formation,
              player_bullets, enemy_bullets, particles, flash_fx,
              ufo, bunkers, powerups, score, high_score, lives,
-             score_multiplier, accuracy, streak=0,
+             score_multiplier, streak=0,
              powerup_msg="", active_pu_type=None, active_pu_remaining=0,
              score_popups=None, boss=None, difficulty=Difficulty.NORMAL):
         if state == GameState.TITLE:
@@ -73,7 +73,7 @@ class Renderer:
             self._draw_level_transition(state, level)
 
         self._present(state, score, high_score, lives,
-                      score_multiplier, accuracy, streak)
+                      score_multiplier, streak)
 
     def _draw_powerup_popup(self, msg):
         if not msg:
@@ -155,7 +155,7 @@ class Renderer:
         self.screen.blit(ctrl, r5)
 
     def _present(self, state, score, high_score, lives,
-                 score_multiplier, accuracy, streak=0):
+                 score_multiplier, streak=0):
         sx, sy = self.screen_shake.get_offset()
         sw, sh = self.screen.get_size()
         use_scale = sw != WINDOW_WIDTH or sh != WINDOW_HEIGHT
@@ -175,7 +175,7 @@ class Renderer:
 
         self.info_panel.draw(
             target, score, high_score, lives,
-            state, score_multiplier, accuracy, streak,
+            state, score_multiplier, streak,
         )
 
         if use_scale:

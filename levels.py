@@ -42,9 +42,6 @@ def reset_game(game) -> None:
     game.auto_step_timer = 0
     game._shot_timer = 0
     game.elapsed_time = 0
-    game.shots_fired = 0
-    game.shots_hit = 0
-    game._pending_shots.clear()
     game.score_popups.clear()
     game.player_bullets.empty()
     game.enemy_bullets.empty()

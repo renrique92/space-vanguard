@@ -85,10 +85,8 @@ class Game:
         self.auto_step_timer = 0
         self._shot_timer = 0
         self.elapsed_time = 0
-        self.shots_fired = 0
-        self.shots_hit = 0
-        self._pending_shots = set()
         self.score_popups = []
+        self._prev_player_bullets = set()
 
         self.powerups = pygame.sprite.Group()
         self.powerup_msg = ""
@@ -173,7 +171,6 @@ class Game:
                     self._shot_timer = shot_delay
                     for b in bullets:
                         self.player_bullets.add(b)
-                        self._pending_shots.add(b)
                     self.sound.play("shoot")
                     self.flash_fx.add(
                         MuzzleFlash(self.player.rect.centerx, self.player.rect.top)
@@ -185,12 +182,6 @@ class Game:
             return 2.0
         sec = self.elapsed_time / 1000
         return max(SCORE_MULT_MIN, SCORE_MULT_START - sec / SCORE_MULT_DECAY)
-
-    @property
-    def accuracy(self):
-        if self.shots_fired == 0:
-            return 100.0
-        return self.shots_hit / self.shots_fired * 100
 
     def _update(self, dt: int) -> None:
         self.elapsed_time += dt
@@ -220,6 +211,7 @@ class Game:
 
         handle_enemy_shooting(self)
 
+        self._prev_player_bullets = set(self.player_bullets.sprites())
         self.player_bullets.update()
         self.enemy_bullets.update()
         self.particles.update(dt)
@@ -251,11 +243,14 @@ class Game:
 
         self.powerups.update(dt)
 
-        self._resolve_shots()
         self._shot_timer = max(0, self._shot_timer - dt)
 
         handle_player_hit(self)
         handle_game_state_checks(self)
+
+        for b in self._prev_player_bullets:
+            if not b.alive() and not b.has_hit:
+                self.streak = 0
 
     def _update_score_popups(self, dt: int) -> None:
         for popup in self.score_popups[:]:
@@ -329,7 +324,7 @@ class Game:
             self.particles, self.flash_fx,
             self.ufo, self.bunkers, self.powerups,
             self.score, self.high_score, self.player.lives,
-            self.score_multiplier, self.accuracy, self.streak,
+            self.score_multiplier, self.streak,
             difficulty=self.difficulty,
             powerup_msg=self.powerup_msg,
             active_pu_type=active_pu_type,
@@ -350,11 +345,5 @@ class Game:
             self.high_score = self.score
             with open(HIGH_SCORE_FILE, "w") as f:
                 json.dump(self.high_score, f)
-
-    def _resolve_shots(self) -> None:
-        dead = [s for s in self._pending_shots if not s.alive()]
-        for s in dead:
-            self.shots_fired += 1
-            self._pending_shots.remove(s)
 
 
