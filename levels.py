@@ -29,6 +29,12 @@ def advance_level(game) -> None:
     diff = DIFFICULTY_PRESETS[game.difficulty]
     game.formation = EnemyFormation(LEVELS[game.level - 1], diff)
     game.player.reset(reset_lives=False)
+    if game.player.special_charge >= 1.0 and not game.player.special_used:
+        game.player.special_charge = 1.0
+    else:
+        game.player.special_charge = 0.0
+    game.player.special_used = False
+    game.player.special_active = False
     game.auto_step_timer = 0
 
 

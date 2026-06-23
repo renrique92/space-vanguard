@@ -6,7 +6,7 @@ from classes import GameState, PowerUpType
 from effects import spawn_explosion
 from settings import (
     POWERUP_CHANCE, POWERUP_COOLDOWN, UFO_SPAWN_MAX, UFO_SPAWN_MIN,
-    MAX_LIVES, TOTAL_LEVELS,
+    MAX_LIVES, TOTAL_LEVELS, SPECIAL_BEAM_TICK, SPECIAL_BEAM_WIDTH,
 )
 from sprites.boss import Boss
 from sprites.powerup import PowerUp
@@ -179,3 +179,60 @@ def handle_game_state_checks(game) -> None:
         game.sound.stop_bgm()
         game._save_high_score()
         game.sound.play("win")
+
+
+def handle_special_beam(game) -> None:
+    if not game.player.special_active:
+        return
+    if game.transition_timer > 0:
+        return
+    game.player.special_tick_timer += game._last_dt
+    if game.player.special_tick_timer < SPECIAL_BEAM_TICK:
+        return
+    game.player.special_tick_timer = 0
+
+    cx = game.player.rect.centerx
+    beam_rect = pygame.Rect(cx - SPECIAL_BEAM_WIDTH // 2, 0, SPECIAL_BEAM_WIDTH, game.player.rect.top)
+
+    for enemy in list(game.formation.enemies):
+        if enemy.rect.colliderect(beam_rect):
+            mult = game.score_multiplier
+            game.streak += 1
+            streak_bonus = min(game.streak, 99)
+            pts = int(enemy.points * mult) + streak_bonus
+            game.score += pts
+            game.score_popups.append({
+                "text": f"+{pts}",
+                "x": enemy.rect.centerx,
+                "y": enemy.rect.centery,
+                "timer": 800,
+                "start_y": enemy.rect.centery,
+            })
+            color = enemy.image.get_at((0, 0))[:3]
+            game.particles.add(
+                spawn_explosion(enemy.rect.centerx, enemy.rect.centery, color, count=6)
+            )
+            game.sound.play("explosion")
+            enemy.kill()
+
+    for bullet in list(game.enemy_bullets):
+        if bullet.rect.colliderect(beam_rect):
+            bullet.kill()
+
+    if game.ufo and game.ufo.rect.colliderect(beam_rect):
+        pts = game.ufo.points
+        game.score += pts
+        game.score_popups.append({
+            "text": f"+{pts}",
+            "x": game.ufo.rect.centerx,
+            "y": game.ufo.rect.centery,
+            "timer": 800,
+            "start_y": game.ufo.rect.centery,
+        })
+        game.particles.add(
+            spawn_explosion(game.ufo.rect.centerx, game.ufo.rect.centery, (180, 100, 200))
+        )
+        game.sound.play("explosion")
+        game.ufo = None
+        game.ufo_spawn_delay = random.randint(UFO_SPAWN_MIN, UFO_SPAWN_MAX)
+        game.ufo_spawn_timer = 0

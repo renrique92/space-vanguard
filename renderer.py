@@ -25,7 +25,8 @@ class Renderer:
              ufo, bunkers, powerups, score, high_score, lives,
              score_multiplier, streak=0,
              powerup_msg="", active_pu_type=None, active_pu_remaining=0,
-             score_popups=None, boss=None, difficulty=Difficulty.NORMAL):
+             score_popups=None, boss=None, difficulty=Difficulty.NORMAL,
+             special_charge=0.0, special_active=False):
         if state == GameState.TITLE:
             self.screen.fill(BLACK)
             sw, sh = self.screen.get_size()
@@ -63,6 +64,10 @@ class Renderer:
                 text.set_alpha(alpha)
                 self.game_surf.blit(text, (p["x"] - text.get_width() // 2, p["y"]))
         self.game_surf.blit(player.image, player.rect)
+        self._draw_special_bar(player, special_charge, special_active)
+
+        if special_active:
+            self._draw_beam(player)
 
         self._draw_level_indicator(level)
         self._draw_powerup_popup(powerup_msg)
@@ -117,6 +122,56 @@ class Renderer:
         pygame.draw.rect(self.game_surf, (60, 60, 60), (bx, by, bw, bh))
         ratio = max(0, boss.hp / boss.max_hp)
         pygame.draw.rect(self.game_surf, (255, 80, 80), (bx, by, int(bw * ratio), bh))
+
+    def _draw_special_bar(self, player, charge, active):
+        from settings import SPECIAL_BEAM_COLOR, GAME_WIDTH, WHITE, DIVIDER
+
+        bar_w = 80
+        bar_h = 6
+        bx = player.rect.centerx - bar_w // 2
+        by = player.rect.bottom + 4
+
+        label = "Z" if not active else "Z"
+        if charge < 1.0 and not active:
+            label = f"Z {int(charge * 100)}%"
+        elif active:
+            label = "Z BEAM"
+        else:
+            label = "Z READY"
+
+        pygame.draw.rect(self.game_surf, (40, 40, 50), (bx, by, bar_w, bar_h))
+        fill_w = int(bar_w * charge)
+        if fill_w > 0:
+            bar_color = WHITE if active else SPECIAL_BEAM_COLOR
+            pygame.draw.rect(self.game_surf, bar_color, (bx, by, fill_w, bar_h))
+        pygame.draw.rect(self.game_surf, DIVIDER, (bx, by, bar_w, bar_h), 1)
+
+        fs = pygame.font.Font(None, 16)
+        text = fs.render(label, True, SPECIAL_BEAM_COLOR if not active else WHITE)
+        tr = text.get_rect(center=(player.rect.centerx, by + bar_h + 10))
+        self.game_surf.blit(text, tr)
+
+    def _draw_beam(self, player):
+        from settings import SPECIAL_BEAM_COLOR, SPECIAL_BEAM_CORE, SPECIAL_BEAM_WIDTH
+
+        cx = player.rect.centerx
+        bw = SPECIAL_BEAM_WIDTH
+        bh = player.rect.top
+
+        glow = pygame.Surface((bw + 16, bh), pygame.SRCALPHA)
+        glow.fill((*SPECIAL_BEAM_COLOR, 20))
+        self.game_surf.blit(glow, (cx - bw // 2 - 8, 0))
+
+        for i in range(3):
+            alpha = 60 - i * 15
+            w = bw + 10 - i * 4
+            s = pygame.Surface((w, bh), pygame.SRCALPHA)
+            s.fill((*SPECIAL_BEAM_COLOR, max(0, alpha)))
+            self.game_surf.blit(s, (cx - w // 2, 0))
+
+        core = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        core.fill((*SPECIAL_BEAM_CORE, 40))
+        self.game_surf.blit(core, (cx - bw // 2, 0))
 
     def _draw_level_transition(self, state, level):
         ft = pygame.font.Font(None, 56)

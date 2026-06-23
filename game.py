@@ -13,6 +13,7 @@ from collision import (
     handle_game_state_checks,
     handle_player_hit,
     handle_powerup_collection,
+    handle_special_beam,
     handle_ufo_collision,
 )
 from shooting import handle_enemy_shooting
@@ -25,6 +26,7 @@ from settings import (
     PLAYER_BULLET_SPEED, POWERUP_COOLDOWN,
     SCORE_MULT_START, SCORE_MULT_DECAY,
     SCORE_MULT_MIN, SHOT_DELAY, SLOWMO_RATE, TOTAL_LEVELS,
+    SPECIAL_ACTIVATE_KEY,
     UFO_SPAWN_MIN, UFO_SPAWN_MAX, WINDOW_HEIGHT, WINDOW_WIDTH,
 )
 from sounds import SoundManager
@@ -153,28 +155,38 @@ class Game:
                     self.sound.muted = not self.sound.muted
                     if self.sound.muted:
                         self.sound.stop_bgm()
+                elif event.key == SPECIAL_ACTIVATE_KEY and self.state == GameState.PLAYING and self.transition_timer <= 0:
+                    if self.player.special_active:
+                        self.player.special_active = False
+                    elif self.player.special_charge >= 1.0:
+                        self.player.special_active = True
+                        self.player.special_used = True
+                        self.player.special_tick_timer = 0
+                        self.player.special_charge = 1.0
+                        self.sound.play("special")
 
         if self.state == GameState.PLAYING and self.transition_timer <= 0:
-            keys = pygame.key.get_pressed()
-            self.player.handle_input(keys)
-            shot_delay = 80 if self.player.rapid_timer > 0 else SHOT_DELAY
-            if (
-                keys[pygame.K_SPACE]
-                and len(self.player_bullets) < MAX_PLAYER_BULLETS
-                and self._shot_timer <= 0
-            ):
-                if self.player.spread_timer > 0:
-                    bullets = self._create_spread()
-                else:
-                    bullets = self._create_bullet()
-                if bullets:
-                    self._shot_timer = shot_delay
-                    for b in bullets:
-                        self.player_bullets.add(b)
-                    self.sound.play("shoot")
-                    self.flash_fx.add(
-                        MuzzleFlash(self.player.rect.centerx, self.player.rect.top)
-                    )
+            if not self.player.special_active:
+                keys = pygame.key.get_pressed()
+                self.player.handle_input(keys)
+                shot_delay = 80 if self.player.rapid_timer > 0 else SHOT_DELAY
+                if (
+                    keys[pygame.K_SPACE]
+                    and len(self.player_bullets) < MAX_PLAYER_BULLETS
+                    and self._shot_timer <= 0
+                ):
+                    if self.player.spread_timer > 0:
+                        bullets = self._create_spread()
+                    else:
+                        bullets = self._create_bullet()
+                    if bullets:
+                        self._shot_timer = shot_delay
+                        for b in bullets:
+                            self.player_bullets.add(b)
+                        self.sound.play("shoot")
+                        self.flash_fx.add(
+                            MuzzleFlash(self.player.rect.centerx, self.player.rect.top)
+                        )
 
     @property
     def score_multiplier(self):
@@ -185,6 +197,7 @@ class Game:
 
     def _update(self, dt: int) -> None:
         self.elapsed_time += dt
+        self._last_dt = dt
         self._update_stars(dt)
 
         if self.state == GameState.TITLE:
@@ -200,6 +213,8 @@ class Game:
 
         self.screen_shake.update(dt)
         self.player.update(dt)
+        self.player.add_special_charge(dt)
+        self.player.drain_special_charge(dt)
 
         speed_mult = SLOWMO_RATE if self.player.slowmo_timer > 0 else 1.0
         self.formation.update(dt, speed_mult)
@@ -247,6 +262,7 @@ class Game:
 
         handle_player_hit(self)
         handle_game_state_checks(self)
+        handle_special_beam(self)
 
         for b in self._prev_player_bullets:
             if not b.alive() and not b.has_hit:
@@ -331,6 +347,8 @@ class Game:
             active_pu_remaining=active_pu_remaining,
             score_popups=self.score_popups,
             boss=self.boss,
+            special_charge=self.player.special_charge,
+            special_active=self.player.special_active,
         )
 
     def _load_high_score(self) -> int:

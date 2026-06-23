@@ -31,6 +31,8 @@ class SoundManager:
         self.sounds["ufo"] = self._sweep(200, 600, 0.40, 0.08, "square")
         self.sounds["level_up"] = self._sweep(660, 1320, 0.30, 0.12, "square")
         self.sounds["powerup"] = self._sweep(440, 880, 0.15, 0.10, "sine")
+        self.sounds["special"] = self._tone(660, 0.25, 0.15, "sine")
+        self.sounds["special_beam"] = self._generate_beam_hum()
         self.sounds["bgm"] = self._generate_bgm()
 
     def play(self, name):
@@ -89,6 +91,20 @@ class SoundManager:
             v2 = math.sin(2 * math.pi * freq * 2 * t) * 0.3
             env = max(0, 1 - (t % beat_s) / beat_s * 0.6)
             buf[i] = int(32767 * 0.08 * (v + v2) * env)
+        return self._to_sound(buf)
+
+    def _generate_beam_hum(self):
+        sr = 22050
+        duration = 0.8
+        n = int(sr * duration)
+        buf = array.array("h", [0]) * n
+        for i in range(n):
+            t = i / sr
+            v1 = math.sin(2 * math.pi * 220 * t)
+            v2 = math.sin(2 * math.pi * 330 * t) * 0.4
+            v3 = math.sin(2 * math.pi * 440 * t) * 0.2
+            env = 1 - t / duration * 0.3
+            buf[i] = int(32767 * 0.10 * (v1 + v2 + v3) * env)
         return self._to_sound(buf)
 
     def _sweep(self, f_start, f_end, duration, volume, wave):

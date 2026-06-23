@@ -5,6 +5,7 @@ from settings import (
     PLAYER_BOTTOM_MARGIN, INVULNERABLE_MS, GAME_WIDTH,
     POWERUP_DURATIONS, POWERUP_SHIP_COLORS,
     WINDOW_HEIGHT, GREEN, CYAN, GAME_AREA,
+    SPECIAL_CHARGE_TIME, SPECIAL_DURATION,
 )
 
 TIMED_TYPES = [
@@ -31,9 +32,13 @@ class Player(pygame.sprite.Sprite):
         self.rect.midbottom = (GAME_WIDTH // 2, WINDOW_HEIGHT - PLAYER_BOTTOM_MARGIN)
         if reset_lives:
             self.lives = PLAYER_LIVES
+            self.special_charge = 0.0
         self.speed = PLAYER_SPEED
         self.invulnerable = False
         self.invuln_timer = 0
+        self.special_active = False
+        self.special_used = False
+        self.special_tick_timer = 0
         self._clear_timers()
         self._draw_ship()
         self.image.set_alpha(255)
@@ -85,6 +90,8 @@ class Player(pygame.sprite.Sprite):
             self.shield_timer = 0
             return
         self.lives -= 1
+        self.special_charge = 0.0
+        self.special_active = False
         self.invulnerable = True
         self.invuln_timer = INVULNERABLE_MS
         self.rect.midbottom = (GAME_WIDTH // 2, WINDOW_HEIGHT - PLAYER_BOTTOM_MARGIN)
@@ -96,3 +103,13 @@ class Player(pygame.sprite.Sprite):
             setattr(self, f"{power_type.name.lower()}_timer", dur)
         if power_type in POWERUP_SHIP_COLORS:
             self._draw_ship(*POWERUP_SHIP_COLORS[power_type])
+
+    def add_special_charge(self, dt):
+        if not self.special_active and self.special_charge < 1.0:
+            self.special_charge = min(1.0, self.special_charge + dt / SPECIAL_CHARGE_TIME)
+
+    def drain_special_charge(self, dt):
+        if self.special_active:
+            self.special_charge = max(0.0, self.special_charge - dt / SPECIAL_DURATION)
+            if self.special_charge <= 0.0:
+                self.special_active = False
